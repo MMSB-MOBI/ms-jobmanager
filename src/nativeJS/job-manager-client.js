@@ -11,6 +11,8 @@ let stream = require('stream');
 let events = require('events');
 let my_logger = require("../logger.js")
 let logger = my_logger.logger
+
+const statusEmitter = new EventEmitter()
 /*
     Defining object to take care of job sumbissions
 */
@@ -89,6 +91,15 @@ class jobAccumulator extends events.EventEmitter {
         });
         return p;
     }
+
+    abortAll(){
+        for(const [jobId, jobProxy] of Object.entries(this.jobsPool)){
+            console.log(jobId, "abort")
+            jobProxy.emit("disconnect_error")
+            this.deleteJob(jobId)
+        }
+    }
+
     appendToQueue(data, jobOpt) {
         let job = new jobLib.jobProxy(jobOpt);
         this.jobsPool[job.id] = job;
@@ -233,33 +244,33 @@ class jobAccumulator extends events.EventEmitter {
  *          'submitted', {Object}job;
  *          'completed', {Stream}stdio, {Stream}stderr, {Object}job // this event raising is delegated to jobManager
  */
+
+const jobAccumulatorObject = new jobAccumulator();
+
 function start(opt) {
     return new Promise ( (resolve, reject) => {    
-        jobAccumulator = new jobAccumulator();
-        let joker = 5; 
         let url = 'http://' + opt.TCPip + ':' + opt.port;
         logger.debug(`jobmanager core microservice coordinates defined as \"${url}\"`);
         socket = io(url); 
     
         socket.on("connect", (d) => {
             logger.debug(`manage to connect to jobmanager core microservice at ${url}`);            
-            jobAccumulator.bind(socket);
-            resolve();
+            jobAccumulatorObject.bind(socket);
+            resolve(statusEmitter);
         })
         socket.on("connect_error", (err) => {
-            joker--
-            if (joker === 0) {
-                socket.disconnect()
-                reject("socket connection error");
-            }
-            
+            reject("socket connection error")
         });
+        socket.on("disconnect", () => {
+            jobAccumulatorObject.abortAll(); 
+            statusEmitter.emit("disconnect")
+        })
     });
 }
 function pull(_jobSerial) {
     let jobSerial = JSON.parse(_jobSerial);
     logger.debug(`pulling Object : ${util.format(jobSerial)}`);
-    let jobObject = jobAccumulator.flush(jobSerial.id);
+    let jobObject = jobAccumulatorObject.flush(jobSerial.id);
     if (!jobObject)
         return;
     logger.debug('completed event on socket');
@@ -297,7 +308,7 @@ function push(data) {
     }
     // console.log(`Got that\n${util.format(data)}`);
     logger.debug(`Passing following jobOpt to jobProxy constructor\n${util.format(jobOpt)}`);
-    let job = jobAccumulator.appendToQueue(data, jobOpt);
+    let job = jobAccumulatorObject.appendToQueue(data, jobOpt);
     return job;
 }
 function buildStreams(data, job) {
