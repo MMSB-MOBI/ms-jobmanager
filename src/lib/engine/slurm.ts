@@ -162,6 +162,11 @@ function _preprocessorDump (id:string, preprocessorOpt:cType.stringMap):string {
         string += "source /etc/profile.d/modules.sh\n";
     }
 
+    if (preprocessorOpt.hasOwnProperty("addToBash")){
+        string += preprocessorOpt.addToBash + "\n"
+    }
+    
+
 
     /*
     var nNodes = jobObject.hasOwnProperty('nNodes') ? jobObject.nNodes ? jobObject.nNodes : 1 : 1;

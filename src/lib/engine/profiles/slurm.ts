@@ -41,17 +41,26 @@ const engineSys = {
                 "cancelBin" : "/usr/bin/scancel",
                 "queueBin"  : "/usr/bin/squeue"
             },
-            "iCache" : "mad",
+            "iCache" : "dev/mad/tmp",
             "execUser" : "ws_mad"
         },
-        "ws2-dev-mad2" : {
+        "ws2-prod-mad" : {
             "binaries": {
                 "submitBin" : "/usr/bin/sbatch",
                 "cancelBin" : "/usr/bin/scancel",
                 "queueBin"  : "/usr/bin/squeue"
             },
-            "iCache" : "mad"
+            "iCache" : "prod/mad/tmp",
+            "execUser" : "ws_mad"
         },
+        "ws2-dev-cstb" : {
+            "binaries": {
+                "submitBin" : "/usr/bin/sbatch",
+                "cancelBin" : "/usr/bin/scancel",
+                "queueBin"  : "/usr/bin/squeue"
+            },
+            "iCache" : "dev/cstb/tmp"
+        }
     }
 }; 
 
@@ -142,8 +151,13 @@ const profiles: profileInterface = {
             "gid": "ws_users",
             "uid": "ws_mad"
         },
-        "ws2-dev-mad": {
-            "partition" : "short"
+        "ws2-short": {
+            "partition" : "short",
+            "addToBash" : ". /etc/profile" //to allow user to execute
+        },
+        "ws2-long" : {
+            "partition" : "long",
+            "addToBash" : ". /etc/profile" //to allow user to execute
         }
     }
 }
