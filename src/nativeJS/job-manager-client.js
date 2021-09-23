@@ -188,11 +188,12 @@ class jobAccumulator extends events.EventEmitter {
             let jobSerial = JSON.parse(_jobSerial)
             logger.error(`lostJob ${jobSerial.id}`)
             let jRef = this.getJobObject(jobSerial.id);
-            if (!jRef)
+            if (!jRef){
                 return;
+            }
             logger.error(`Following job not found in the process pool ${jRef.id}`);
-            logger.debug(util.format(jRef))
-            jRef.emit('lostJob', jRef);
+            
+            jRef.jEmit('lostJob', jRef);
             self.deleteJob(jobSerial.id);
         });
         //  *          'listError, {String}error) : the engine failed to list process along with error message

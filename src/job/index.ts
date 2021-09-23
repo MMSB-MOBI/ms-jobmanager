@@ -362,9 +362,8 @@ export class jobProxy extends events.EventEmitter implements jobOptProxyInterfac
     // WARNING wont work with streams
     jEmit(eName:string|symbol, ...args: any[]):boolean {
         logger.silly(`jEmit(this) ${String(eName)}`);
-
         this.hasShimmerings.forEach((shimJob:jobObject) => {
-            shimJob.jEmit(eName, ...args);
+            shimJob.jEmit(eName, shimJob);
         }); 
 
         // We call the original emitter anyhow
@@ -413,7 +412,6 @@ export class jobProxy extends events.EventEmitter implements jobOptProxyInterfac
                 return JSON.stringify(e); // Primitive OR 
             });
             logger.silly(`socket emiting event ${String(eName)}`);    
-            logger.silly(_args);         
             this.socket.emit(eName, ..._args);
         }
         return true;
