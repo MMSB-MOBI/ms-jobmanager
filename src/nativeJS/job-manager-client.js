@@ -193,7 +193,7 @@ class jobAccumulator extends events.EventEmitter {
             }
             logger.error(`Following job not found in the process pool ${jRef.id}`);
             
-            jRef.jEmit('lostJob', jRef);
+            jRef.emit('lostJob', jRef);
             self.deleteJob(jobSerial.id);
         });
         //  *          'listError, {String}error) : the engine failed to list process along with error message
