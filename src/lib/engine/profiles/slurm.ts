@@ -1,5 +1,11 @@
 import {profileInterface} from './index.js'
 
+const WS_DEFAULT_BIN = {
+    "submitBin" : "/usr/bin/sbatch",
+    "cancelBin" : "/usr/bin/scancel",
+    "queueBin"  : "/usr/bin/squeue"
+}
+
 const engineSys = {
     "comments": "Definition of specific submission/kill binaries and intermediary cache folders",
     "definitions": {
@@ -36,30 +42,24 @@ const engineSys = {
             "iCache" : "mad/tmp"
         }, 
         "ws2-dev-mad" : {
-            "binaries": {
-                "submitBin" : "/usr/bin/sbatch",
-                "cancelBin" : "/usr/bin/scancel",
-                "queueBin"  : "/usr/bin/squeue"
-            },
+            "binaries": WS_DEFAULT_BIN,
             "iCache" : "dev/mad/tmp",
             "execUser" : "ws_mad"
         },
         "ws2-prod-mad" : {
-            "binaries": {
-                "submitBin" : "/usr/bin/sbatch",
-                "cancelBin" : "/usr/bin/scancel",
-                "queueBin"  : "/usr/bin/squeue"
-            },
+            "binaries": WS_DEFAULT_BIN,
             "iCache" : "prod/mad/tmp",
             "execUser" : "ws_mad"
         },
         "ws2-dev-cstb" : {
-            "binaries": {
-                "submitBin" : "/usr/bin/sbatch",
-                "cancelBin" : "/usr/bin/scancel",
-                "queueBin"  : "/usr/bin/squeue"
-            },
-            "iCache" : "dev/cstb/tmp"
+            "binaries": WS_DEFAULT_BIN,
+            "iCache" : "dev/cstb/tmp",
+            "execUser" : "ws_cstb"
+        },
+        "ws2-dev-detbelt" : {
+            "binaries": WS_DEFAULT_BIN,
+            "iCache" : "dev/detbelt/tmp",
+            "execUser" : "ws_detbelt"
         }
     }
 }; 
