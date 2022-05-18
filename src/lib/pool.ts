@@ -54,6 +54,7 @@ export function size(opt?:string):number{
 
 /*  We should follow shimmerings */
 export function removeJob(query:ISearchKey):boolean {
+
     logger.silly(`Trying to remove ${uFormat(query)}`)
     let queryID = coherceToID(query);
     if(!queryID) {

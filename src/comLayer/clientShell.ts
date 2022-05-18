@@ -1,36 +1,46 @@
-"use strict";
+import { EventEmitter } from 'events';
+import { JobProxy, JobOptProxy, JobOptClientFactory } from '../shared/types/client'
+import { io, Socket } from "socket.io-client";
+import { createReadStream } from 'fs';
+import { ClientToServerEvents, ServerToClientEvents} from '../shared/types/socket-io';
 
-import { Writable, Transform } from 'stream'
-let EventEmitter = require('events').EventEmitter;
-let jobLib = require('../job/index.js');
-let io = require('socket.io-client');
-//import cType = require('./commonTypes.js');
-let fs = require('fs');
 let ss = require('socket.io-stream');
 let util = require('util');
-let socket;
+let socket:Socket<ServerToClientEvents, ClientToServerEvents>;
 let events = require('events');
 let my_logger = require("../logger.js")
 let logger = my_logger.logger
+import { ServerStatus } from '../shared/types/common'
+import { JobSerial } from '../shared/types/server'
+import { Writable } from 'stream';
 
-const statusEmitter = new EventEmitter()
+type JobWrapStatus = 'idle' | 'sent' | 'bounced' | 'granted' | 'completed';
+type uuid = string;
+interface JobWrap {
+    job: JobProxy,
+    //data: Object,
+    jobOpt : JobOptProxy,
+    status: JobWrapStatus
+}
+
 /*
     Defining object to take care of job sumbissions
 */
-class jobAccumulator extends events.EventEmitter {
+class jobAccumulator extends EventEmitter {
+    jobsPool:Record<string, JobProxy> = {};
+    jobsQueue:JobWrap[] = [];
+    jobsPromisesReject:Record<uuid, (value:unknown)=>void>    = {};
+    jobsPromisesResolve:Record<uuid, (reason?:unknown)=>void> = {};
+    JMstatus:ServerStatus = 'busy';
+    socket?:Socket;
+
     constructor() {
         logger.info("Coucou from local dev");
         super();
-        this.jobsPool = {};
-      //  this.JMsocket = undefined;
-        this.JMstatus = 'busy';
-        this.jobsQueue = [];
-        this.jobsPromisesReject = {};
-        this.jobsPromisesResolve = {};
         // running managment loop;
         //setInterval(this.pulse(), 500);
     }
-    _getJobQueueWrapper(jobID) {
+    _getJobQueueWrapper(jobID:string) {
         for (let jobWrap of this.jobsQueue)
             if (jobWrap.job.id == jobID)
                 return jobWrap;
@@ -43,24 +53,26 @@ class jobAccumulator extends events.EventEmitter {
                 c++;
         return c;
     }
-    _getWaitingJob() {
+    _getWaitingJob():JobWrap|undefined{
         for (let jobWrap of this.jobsQueue)
             if (jobWrap.status == 'idle' || jobWrap.status == 'bounced')
                 return jobWrap;
         return undefined;
     }
-    popQueue() {
+    popQueue():Promise<string> {
+       
         //Promise resolution is delegated to the socket listener in bind method
         let jobWrap = this._getWaitingJob();
         let self = this;
         let p = new Promise((resolve, reject) => {
-            self.jobsPromisesResolve[jobWrap.job.id] = resolve;
-            self.jobsPromisesReject[jobWrap.job.id] = reject;
+           
             if (!jobWrap) {
                 logger.debug("Queue exhausted");
                 reject({ type: 'exhausted' });
                 return;
             }
+            self.jobsPromisesResolve[jobWrap.job.id] = resolve;
+            self.jobsPromisesReject[jobWrap.job.id] = reject;
             // if bounced status, stream are already setup
             if (jobWrap.status == 'idle') {
                 // Building streams for newly submitted job
@@ -73,14 +85,14 @@ class jobAccumulator extends events.EventEmitter {
                 // module -> a list of string
                 // exportVars -> a string map
                 // if a cmd is passed we make it a stream and assign it to script
-                let data = jobWrap.data;
-                let jobOpt = jobWrap.jobOpt;
-                let job = jobWrap.job;
-                jobOpt = buildStreams(jobOpt, job);
+                //const data = jobWrap.data;
+                const _jobOpt = jobWrap.jobOpt;
+                const job = jobWrap.job;
+                const jobOpt = buildStreams(_jobOpt, job); // 1st arg carries data to server, 2nd arg register events
                 logger.debug(`jobOpt passed to socket w/ id ${data.id}:\n${util.format(jobOpt)}`);
-                ss(socket, {}).on(data.id + '/script', (stream) => { jobOpt.script.pipe(stream); });
+                ss(socket, {}).on(job.id + '/script', (stream:Writable) => { jobOpt.script.pipe(stream); });
                 for (let inputEvent in jobOpt.inputs)
-                    ss(socket, {}).on(data.id + '/' + inputEvent, (stream) => {
+                    ss(socket, {}).on(job.id + '/' + inputEvent, (stream) => {
                         jobOpt.inputs[inputEvent].pipe(stream);
                     });
                 logger.silly(`EMITTING THIS ORIGINAL ${jobWrap.job.id}\n${util.format(jobWrap.data)}`);
@@ -95,20 +107,20 @@ class jobAccumulator extends events.EventEmitter {
     }
 
     abortAll(){
-        for(const [jobId, jobProxy] of Object.entries(this.jobsPool)){
-            console.log(jobId, "abort")
-            jobProxy.emit("disconnect_error")
+        for(const [jobId, jobProxyObj] of Object.entries(this.jobsPool)){
+            console.log(jobId +  "abort");
+            (jobProxyObj as JobProxy).emit("disconnect_error")
             this.deleteJob(jobId)
         }
     }
 
-    appendToQueue(data, jobOpt) {
-        let job = new jobLib.jobProxy(jobOpt);
+    appendToQueue(/*data,*/ jobOpt:JobOptProxy):JobProxy {
+        const job = new JobProxy(jobOpt);
         this.jobsPool[job.id] = job;
-        data.id = job.id;
+        //data.id = job.id;
         this.jobsQueue.push({
             'job': job,
-            'data': data,
+          //  'data': data,
             'jobOpt': jobOpt,
             'status': 'idle'
         });
@@ -123,7 +135,7 @@ class jobAccumulator extends events.EventEmitter {
                 return false;
         return true;
     }
-    deleteJob(jobID) {
+    deleteJob(jobID:string) {
         if (this.jobsPool.hasOwnProperty(jobID)) {
             delete (this.jobsPool[jobID]);
             delete (this.jobsPromisesResolve[jobID]);
@@ -136,37 +148,37 @@ class jobAccumulator extends events.EventEmitter {
     pulse() {
         if (this.jobsQueue.length == 0)
             return;
-        if (this._countSentJob > 0)
+        if (this._countSentJob()> 0)
             return;
         let self = this;
         // Maybe done w/ async/await
         this.popQueue().then((jobID) => {
-            self._getJobQueueWrapper(jobID).status = 'granted';
+            (self._getJobQueueWrapper(jobID) as JobWrap).status = 'granted';
             self.pulse(); // Trying to send next one asap
         }).catch((err) => {
             if (err.type == 'bouncing') {
-                self._getJobQueueWrapper(err.jobID).status = 'bounced';
+                (self._getJobQueueWrapper(err.jobID) as JobWrap).status = 'bounced';
                 setTimeout(() => { self.pulse(); }, 1500); // W8 and resend
             }
         });
     }
-    flush(jobID) {
-        let job = this.getJobObject(jobID);
+    flush(jobID:uuid):JobProxy|undefined {
+        const job = this.getJobObject(jobID);
         if (!job)
             return undefined;
-        this._getJobQueueWrapper(jobID).status = 'completed';
+        (this._getJobQueueWrapper(jobID) as JobWrap).status = 'completed';
         this.deleteJob(jobID);
         return job;
     }
-    getJobObject(uuid) {
-        logger.silly(`getJobObject ${uuid}`)
-        if (this.jobsPool.hasOwnProperty(uuid))
-            return this.jobsPool[uuid];
-        logger.error(`job id ${uuid} is not found in local jobsPool`);
+    getJobObject(maybeJobID:uuid):JobProxy|undefined {
+        logger.silly(`getJobObject ${maybeJobID}`)
+        if (this.jobsPool.hasOwnProperty(maybeJobID))
+            return this.jobsPool[maybeJobID];
+        logger.error(`job id ${maybeJobID} is not found in local jobsPool`);
         logger.error(`jobsPool : ${util.format(Object.keys(this.jobsPool))}`);
         return undefined;
     }
-    bind(socket) {
+    bind(socket:Socket) {
         logger.debug("Binding accumulator to socket");
         this.socket = socket;
         socket.on('jobStart', (data) => {
@@ -185,9 +197,9 @@ class jobAccumulator extends events.EventEmitter {
             logger.debug(`Job ${util.format(d)} was granted !`);
             self.jobsPromisesResolve[d.jobID](d.jobID);
         });
-        socket.on('lostJob', (_jobSerial) => {
+        socket.on('lostJob', (_jobSerial:string) => {
             logger.silly(`Client : socket on lostJob`)
-            let jobSerial = JSON.parse(_jobSerial)
+            const jobSerial:JobSerial = JSON.parse(_jobSerial)
             logger.error(`lostJob ${jobSerial.id}`)
             let jRef = this.getJobObject(jobSerial.id);
             if (!jRef){
@@ -196,7 +208,7 @@ class jobAccumulator extends events.EventEmitter {
             logger.error(`Following job not found in the process pool ${jRef.id}`);
             
             jRef.emit('lostJob', jRef);
-            self.deleteJob(jobSerial.id);
+            self.deleteJob(<string>jobSerial.id);
         });
         //  *          'listError, {String}error) : the engine failed to list process along with error message
 
@@ -210,7 +222,7 @@ class jobAccumulator extends events.EventEmitter {
         });
         ['scriptSetPermissionError', 'scriptWriteError', 'scriptReadError', 'inputError'].forEach((eName) => {
             socket.on(eName, (err, jobSerial) => {
-                logger.fatal(`socket.on error ${err} ${utils.format(jobSerial)}`)
+                logger.fatal(`socket.on error ${err} ${util.format(jobSerial)}`)
                 let jRef = this.getJobObject(jobSerial.id);
                 if (!jRef)
                     return;
@@ -255,7 +267,7 @@ function start(opt) {
         let url = 'http://' + opt.TCPip + ':' + opt.port;
         logger.debug(`jobmanager core microservice coordinates defined as \"${url}\"`);
         socket = io(url); 
-    
+        const statusEmitter = new EventEmitter()
         socket.on("connect", (d) => {
             logger.debug(`manage to connect to jobmanager core microservice at ${url}`);            
             jobAccumulatorObject.bind(socket);
@@ -271,8 +283,8 @@ function start(opt) {
     });
 }
 
-function pull(_jobSerial) {
-    let jobSerial = JSON.parse(_jobSerial);
+function pull(jobSerial:JobSerial) { // Should not need to decode anymore
+    //let jobSerial = JSON.parse(_jobSerial);
     logger.debug(`pulling Object : ${util.format(jobSerial)}`);
     let jobObject = jobAccumulatorObject.flush(jobSerial.id);
     if (!jobObject)
@@ -304,41 +316,25 @@ function pull(_jobSerial) {
     */
     return;
 }
-function push(data) {
-    
-    let jobOpt = {
-        id: undefined,
-        script: undefined,
-        cmd: undefined,
-        modules: [],
-        tagTask: undefined,
-        namespace: undefined,
-        exportVar: undefined,
-        jobProfile: "default",
-        ttl: undefined,
-        sysSettingsKey:undefined,
-        inputs: {},
-        socket  // We now try to pass socket reference to job object to allow for thorugh socket file stream request
-    };
-    for (let k in data) {
-        if (!jobOpt.hasOwnProperty(k)) {
-            logger.error(`Unknown jobOpt property ${k}`);
-            continue;
-        }
-        jobOpt[k] = data[k];
-    }
+function push(data:any):JobProxy {
+    // Minimal combinaison of letter 
+    /*
+    if(!isJobOptProxy(data))
+        throw('Pushed data has wrong format');
+    */
+   const jobOpt = JobOptClientFactory(data);
     // console.log(`Got that\n${util.format(data)}`);
-    logger.debug(`Passing following jobOpt to jobProxy constructor\n${util.format(jobOpt)}`);
-    let job = jobAccumulatorObject.appendToQueue(data, jobOpt);
+    logger.debug(`Passing following data to jobProxy constructor\n${util.format(jobOpt)}`);
+    let job = jobAccumulatorObject.appendToQueue(/*data,*/ jobOpt);
     return job;
 }
-function buildStreams(data, job) {
+function buildStreams(data:any, job:JobProxy) {
     logger.debug(`-->${util.format(data)}`);
     //let jobInput = new jobLib.jobInputs(data.inputs);
     let jobInput = job.inputs;
     // Register error here at stream creation fail
     let sMap = {
-        script: fs.createReadStream(data.script),
+        script: createReadStream(data.script),
         inputs: {}
     };
     sMap.script.on('error', function () {
@@ -346,7 +342,7 @@ function buildStreams(data, job) {
         job.emit('scriptError', msg);
         //throw ("No one here");
     });
-    jobInput.on('streamReadError', (e) => {
+    jobInput.on('streamReadError', (e:string) => {
         job.emit('inputError', e);
     });
     sMap.inputs = jobInput.getStreamsMap();
@@ -366,8 +362,8 @@ export class JobFileSystemInterface {
    /* private socket:any;
     private jobID:string;
     */
-   socket;
-   jobID;
+   socket:any;
+   jobID:any;
 
     constructor(jobID/*, socket:string*/) {
         this.jobID = jobID;

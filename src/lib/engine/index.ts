@@ -1,53 +1,55 @@
 import {logger} from '../../logger.js';
 import jobLib = require('../../job');
+import { Job } from '../../job';
+
 import events = require('events');
 
-export {jobObject} from '../../job';
+//export {jobObject} from '../../job';
 
-import cType = require('../../commonTypes.js');
+//import cType = require('../../commonTypes.js');
+import *  as nixLike from './localNixLike';
+//import nixLike = require('./localNixLike.js');
+import *  as slurm from './slurm';
+//import slurm = require('./slurm.js');
 
-import nixLike = require('./localNixLike.js');
-import slurm = require('./slurm.js');
-import { every } from 'async';
-
-export interface engineListData {
+export interface EngineListData {
         'id'?:        string[];
         'partition'?: (string|null)[];
         'nameUUID':   string[]; // Only mandatory one
         'status'?:    string[];
 }
 
-export interface setSysProfileFunc { // Redefine engine system settings using profiles.engineSys stringMap eg: progiles/slurm.ts
+export interface SetSysProfileFunc { // Redefine engine system settings using profiles.engineSys stringMap eg: progiles/slurm.ts
     (profileName:string): void;
 }
 
-export interface engineHeaderFunc {
+export interface EngineHeaderFunc {
     (jobID:string, jobProfileKey:string|undefined, workDir:string) :string;
 }
-export interface engineList {
+export interface EngineList {
     () :events.EventEmitter;
 }
-export interface engineTest {
+export interface EngineTest {
     () :string;
 }
-export interface engineKill {
-    (jobList:jobLib.jobObject[], overrideBinary?:string) :events.EventEmitter;
+export interface EngineKill {
+    (jobList:Job[], overrideBinary?:string) :events.EventEmitter;
 }
 
 export interface engineExecUser {
     ():string|undefined
 }
 
-export interface engineInterface {
-    generateHeader : engineHeaderFunc;
+export interface EngineInterface {
+    generateHeader : EngineHeaderFunc;
     submitBin : string;
     queueBin? : string;
     cancelBin? : string;
-    list : engineList;
-    kill : engineKill;
-    testCommand : engineTest;
+    list : EngineList;
+    kill : EngineKill;
+    testCommand : EngineTest;
     specs:engineSpecs;
-    setSysProfile : setSysProfileFunc;
+    setSysProfile : SetSysProfileFunc;
     iCache?:string;
     execUser?: string; 
 }
@@ -78,7 +80,7 @@ export interface preprocessorMapFn {
 export type preprocessorMapperType = { [s:string] : preprocessorMapFn }
 
 //Returns new instance of engine Object
-export function getEngine(engineName?:engineSpecs, engineBinaries?:BinariesSpec): engineInterface{
+export function getEngine(engineName?:engineSpecs, engineBinaries?:BinariesSpec): EngineInterface{
     //logger.info("Get engine " + Object.keys(engineBinaries))
     logger.debug(`Asked engine symbol ${engineName}`);
 
@@ -101,7 +103,7 @@ export function getEngine(engineName?:engineSpecs, engineBinaries?:BinariesSpec)
 }
 
 
-export class dummyEngine implements engineInterface {
+export class dummyEngine implements EngineInterface {
     constructor() {
     }
     specs:engineSpecs='dummy';
@@ -116,13 +118,13 @@ export class dummyEngine implements engineInterface {
     list() {
         let evt = new events.EventEmitter();
         let t:NodeJS.Timer =  setTimeout(function() {
-            evt.emit("data", <engineListData>{  'id': ['dummyID'], 'partition': ['dummyPartition'],
+            evt.emit("data", <EngineListData>{  'id': ['dummyID'], 'partition': ['dummyPartition'],
                                 'nameUUID': ['dummyNameUUID'], 'status': ['dummyStatus'] });
       //your code to be executed after 1 second
         }, 500);
         return evt;
     }
-    kill(jobList : jobLib.jobObject[]) {
+    kill(jobList : Job[]) {
         return new events.EventEmitter();
     }
     testCommand() {

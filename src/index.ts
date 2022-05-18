@@ -1,21 +1,28 @@
 import {format as uFormat, inspect as uInspect} from 'util';
 import uuidv4 = require('uuid/v4');
-import events = require('events');
+import { EventEmitter } from 'events';
 import {logger} from './logger.js';
-import { jobObject, isJobOptProxy, jobSerialInterface, melting }  from './job';
-import * as engineLib from './lib/engine' ;
-import jmServer = require('./nativeJS/job-manager-server.js');
-import liveMemory = require('./lib/pool.js');
+import { Job, melting }  from './job';
+import { isJobOptProxy } from './shared/types/client';
+import {JobSerial } from './shared/types/server';
+import { getEngine, EngineInterface } from './lib/engine'; 
+//import jmServer = require('./nativeJS/job-manager-server.js');
+//import *  as jmServer from 'comLayer/serverShell';// = require('./nativeJS/job-manager-server.js');
+
+import { SocketRegistry, bouncer, granted, startSocketServer, openBar } from './comLayer/serverShell';
+import * as liveMemory from './lib/pool.js';
 import {open as openSocket} from "./coreSocket";
 import {isSpecs, jobManagerSpecs} from "./coreTypes";
-export {engineSpecs} from './lib/engine/index.js';
+
 import {wardenKick, jobWarden, setWarden } from './warden';
 import {coherceIntoJobTemplate, pprintJobTemplate} from './job/template';
 import { MS_lookup, test as whTest, setParameters as whSetConnect, storeJob } from './warehouseWrapper';
 import {create as createCache} from "./cache";
 
+export {engineSpecs} from './lib/engine';
 
-let engine :engineLib.engineInterface; // to type with Engine contract function signature
+
+let engine:EngineInterface; // to type with Engine contract function signature
 
 
 
@@ -32,7 +39,7 @@ let cacheDir :string|null = null;
 let nWorker:number = 10; // running job max poolsize
 
 
-let topLevelEmitter : events.EventEmitter = new events.EventEmitter();
+let topLevelEmitter = new EventEmitter();
 
 let exhaustBool :boolean = false; // set to true at any push, set to false at exhausted event raise
 
@@ -40,7 +47,7 @@ let emulator :boolean = false; // Trying to keep api/events intact while running
 
 let isStarted :boolean = false;
 
-let microServiceSocket:events.EventEmitter|undefined = undefined;
+let microServiceSocket:SocketRegistry|undefined = undefined;
 
 let TCPip = '127.0.0.1';
 let TCPport = 2222;
@@ -57,7 +64,7 @@ function _pulse() {
 
 //CH 02/12/19
 // Maybe use promess instead of emit("ready"), emit("error")
-export function start(opt:jobManagerSpecs):events.EventEmitter {
+export function start(opt:jobManagerSpecs):EventEmitter {
     logger.debug(`${uFormat(opt)}`);
 
     if (isStarted) {
@@ -73,7 +80,7 @@ export function start(opt:jobManagerSpecs):events.EventEmitter {
         return topLevelEmitter;
     }
 
-    engine = engineLib.getEngine(opt.engineSpec, opt.engineBinaries);
+    engine = getEngine(opt.engineSpec, opt.engineBinaries);
    
     emulator = opt.engineSpec == 'emulate' ? true : false;
 
@@ -83,7 +90,7 @@ export function start(opt:jobManagerSpecs):events.EventEmitter {
     
     // if a port is provided for microservice we open connection
     if(opt.microServicePort) {
-        microServiceSocket =  jmServer.listen(opt.microServicePort);
+        microServiceSocket =  startSocketServer(opt.microServicePort);
         logger.debug(`Listening for consumer microservices at : ${opt.microServicePort}`);
         microServiceSocket
         .on('newJobSocket', pushMS)
@@ -128,25 +135,28 @@ function pushMS(data:any, MS_socket:any) {
     logger.silly(` Memory size vs nWorker :: ${liveMemory.size()} <<>> ${nWorker}`);
     if (liveMemory.size("notBound") >= nWorker) {
         logger.debug("must refuse packet, max pool size reached");
-        jmServer.bouncer(data, MS_socket);
+        bouncer(data, MS_socket);
         return;
         // No early exit yet
     }
     
-    jmServer.granted(data, MS_socket).then((_data)=> {        
+    granted(data, MS_socket).then((_data:any)=> {        
 
         let jobProfile = _data.jobProfile;
         _data.fromConsumerMS = true;
 
         if(isJobOptProxy(_data)) {
             logger.debug(`jobOpt successfully decoded`);
+        } else { 
+            logger.error("Following data is not a valid jobOptProxy");
+            logger.error(uFormat(_data));
         }
         const _ = push(jobProfile, _data);
     });    
 }
 
 /* weak typing of the jobOpt  parameter */
-export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, namespace?: string) : jobObject {
+export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, namespace?: string) : Job {
     logger.debug(`Following litteral was pushed \n ${uInspect(jobOpt, false, 0)}`);
 
     const jobID = jobOpt.id || uuidv4();
@@ -155,7 +165,7 @@ export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, 
     const jobTemplate = coherceIntoJobTemplate(jobProfileString, jobOpt, workDir, { engine, emulator, TCPip, TCPport });
   
     logger.debug(`Following jobTemplate was successfully buildt \n ${pprintJobTemplate(jobTemplate)}`);
-    let newJob = new jobObject(jobTemplate, jobID);
+    const newJob = new Job(jobTemplate, jobID);
 
     // All engine parameters are set at this stage, working on folder creations should be safe
     // Check for intermediary folders in workdirpath
@@ -194,7 +204,7 @@ export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, 
     })
     newJob.on('inputSet', function() { 
         // All input streams were dumped to file(s), we can safely serialize
-        let jobSerial = newJob.getSerialIdentity();
+        const jobSerial = newJob.getSerialIdentity();
         /*
         always lookin warehouse first, if negative look in jobsArray
 
@@ -210,8 +220,7 @@ export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, 
             .on('unknown', function() {
                 logger.silly("####No suitable job found in warehouse");
                 
-                let previousJobs:jobObject[]|undefined;
-                previousJobs = liveMemory.lookup(newJob);
+                const previousJobs:Job[]|undefined = liveMemory.lookup(newJob);
                 
                 if(previousJobs) {
                     logger.debug(`${previousJobs.length} suitable living job(s) found, shimmering`);
@@ -245,7 +254,7 @@ export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, 
     handling job termination.
     Eventualluy resubmit job if error found
 */
-function _pull(job:jobObject):void { 
+function _pull(job:Job):void { 
     logger.silly(`Pulling ${job.id}`);
     job.stderr().then((streamError) => {     
         let stderrString:string|null = null;
@@ -276,14 +285,14 @@ function _storeAndEmit(jid:string, status?:string) {
 
     //let jobSel = {'jid' : jid};
     logger.silly("Store&Emit");
-    let jobObj:jobObject|undefined = liveMemory.getJob({ jid });
-    if (jobObj) {
+    let job:Job|undefined = liveMemory.getJob({ jid });
+    if (job) {
         liveMemory.removeJob({ jid });
         if(liveMemory.size("notBound") < nWorker)
-            jmServer.openBar();
-        jobObj.jEmit("completed", jobObj);
+            openBar();
+            job.jEmit("completed", job);
 
-        let serialJob : jobSerialInterface = jobObj.getSerialIdentity(); 
+        const serialJob:JobSerial = job.getSerialIdentity(); 
         // add type 
         // Make some tests on the jobFootPrint literal?
         

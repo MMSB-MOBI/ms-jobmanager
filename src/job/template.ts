@@ -1,10 +1,9 @@
-import {jobOptInterface} from './index';
-import * as engineLib from '../lib/engine' ;
-import { ParseOptionsResult } from 'commander';
+import { JobOpt } from '../shared/types/server';
+import { EngineInterface } from '../lib/engine' ;
 import {format as uFormat} from 'util';
 
 interface jtSpecs {
-    engine : engineLib.engineInterface,
+    engine : EngineInterface,
     emulator: boolean,
     TCPip : string,
     TCPport : number
@@ -12,7 +11,7 @@ interface jtSpecs {
 
 export function coherceIntoJobTemplate(jobProfileString:string, _jt:any, workDir:string, jtSpec:jtSpecs):jobOptInterface {
 
-    let jt:jobOptInterface=  {
+    let jt:JobOpt=  {
         // "engineHeader": engine.generateHeader(jobID, jobProfileString, workDir),
      "engine" : jtSpec.engine,
      "workDir": workDir,
@@ -44,7 +43,7 @@ export function coherceIntoJobTemplate(jobProfileString:string, _jt:any, workDir
     return jt;
 }
 
-export function pprintJobTemplate(jt:jobOptInterface):string {
+export function pprintJobTemplate(jt:JobOpt):string {
 
     let asString = `jobOptInterface\n\tengine:${jt.engine}}\n\tworkDir:${jt.workDir}\n\temulated:${jt.emulated}`;
     asString    += `\n\tadress/port:${jt.adress}${jt.port}\n\tjobProfile:${jt.jobProfile}`;

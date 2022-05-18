@@ -1,86 +1,93 @@
-"use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
-let events = require('events');
-let socketIO = require('socket.io');
-let HTTP = require('http');
-//let jobLib = require('../job/index.js');
-let ss = require('socket.io-stream');
-let my_logger = require('../logger.js');
-let logger = my_logger.logger;
-let util = require('util');
-let uuidv4 = require('uuid/v4');
-let main = require("../index");
-const { fstat, ReadStream, createWriteStream } = require('fs');
-const { Readable } = require('stream');
-//import ss = require('./node_modules/socket.io-stream/socket.io-stream.js');
-//import comType = require('./job-manager-comTypes.js');
-// Submit we w8 for status b4 sending another one
-let io;
-let socketRegistry = {};
-function registerSocket(uuid, socket) {
-    socketRegistry[uuid] = socket;
-}
-function removeSocket(uuid) {
-    delete socketRegistry[uuid];
-}
-function broadcast(status) {
-    for (let k in socketRegistry) {
-        socketRegistry[k].emit('centralStatus', status);
-    }
-}
+import { EventEmitter } from 'events';
+import { Server as SocketIOServer, Socket } from 'socket.io';
 
-let _SOCKET;
-function listen(port) {
-    let evt = new events.EventEmitter;
-    let server = HTTP.createServer();
-    io = socketIO(server);
-    io.on('connection', function (socket) {
-        _SOCKET = socket
-        let socketID = uuidv4();
-        registerSocket(socketID, socket);
-        evt.emit('connection');
-        /*socket.on('drained', (d) => {
-            logger.info(`job ${d.jobID} has drained its socket`);
-        });*/
-        socket.on('newJobSocket', (data) => {
-            logger.debug(`========\n=============\nnewJobSocket received container:\n${util.format(data)}`);
-            // Emitting the corresponding event/Symbols for socket streaming
-            //logger.debug(`========\n=============\nnewJobSocket emmitting container:\n${util.format(newData)}`);
-            evt.emit('newJobSocket', data, socket);
-        });
-        socket.on('disconnect', function () {
-            removeSocket(socketID);
-        });
-    });
-    server.listen(port);
-    return evt;
-}
-exports.listen = listen;
-/*  NO NEED
-    Sending data back to the client // propagating event to the client
-    //{
-        type : event
-        data : { symbol : ('type', 'reference'), ... }
-    }
-    data element type can be scalar or stream, or do we ducktype ?
+import * as util from 'util';
+import { v4 as uuidv4 } from 'uuid';
+//let main = require("../index");
+import {ServerStatus} from '../shared/types/common';
+import { JobProxy } from '../shared/types/client'
+import { ReadStream, WriteStream } from 'fs';
 
+import { Job } from '../job'
+const ss = require('socket.io-stream')
+
+import { Readable } from 'stream';
+const my_logger = require('../logger.js');
+const logger = my_logger.logger;
+
+import { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from '../shared/types/socket-io';
+/*let io:SocketIOServer;
+let socketRegistry:Record<string, Socket> = {};
 */
-function socketPull(jobObject, stdoutStreamOverride, stderrStreamOverride) {
+
+
+let socketRegistry:SocketRegistry;
+
+export class SocketRegistry extends EventEmitter {
+    private registry:Record<string, Socket> = {};
+    private server:SocketIOServer;
+    private port:number;
+    constructor(port:number){
+        super();
+        this.port   = port;
+        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(port);
+        this.server.on('connection', (socket:Socket)=> {
+            const uuid = this.register(socket);
+            this.emit('connection'); // for login purposes
+            this.emit('clientSocketConnection', socket); // concrete socket
+            const self = this;
+            socket.on('newJobSocket', (data) => {
+                logger.debug(`========\n=============\nnewJobSocket received container:\n${util.format(data)}`);
+                // Emitting the corresponding event/Symbols for socket streaming
+                //logger.debug(`========\n=============\nnewJobSocket emmitting container:\n${util.format(newData)}`);
+                self.emit('newJobSocket', data, socket);
+            });
+            socket.on('disconnect', function () {
+                self.remove(uuid);
+            });
+
+        });
+    }
+    register(socket:Socket):string {
+        const _ = uuidv4();
+        this.registry[_] = socket;
+        return _;
+    }
+    remove(uuid:string) {
+        delete this.registry[uuid];
+    }
+    broadcast(status:ServerStatus) {
+        for (let k in this.registry) {
+            this.registry[k].emit('centralStatus', status);
+        }
+    }
+    
+}
+
+export function startSocketServer(port:number):SocketRegistry {
+    socketRegistry = new SocketRegistry(port);
+
+    return socketRegistry;
+}
+
+//type socketPullArgs = [Job|JobProxy, Promise<Readable>, Promise<Readable>] | [Job|JobProxy, undefined, undefined];
+
+export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<Readable>, stderrStreamOverride?:Promise<Readable>):void {
     if (stdoutStreamOverride)
         logger.debug(`${jobObject.id} Shimmering Socket job pulling`);
     else
         logger.debug(`${jobObject.id} Genuine socket job pulling`);
     //  logger.debug(`${util.format(stdout)}`);
-    let stdoutStream = stdoutStreamOverride ? stdoutStreamOverride : jobObject.stdout();
-    let stderrStream = stderrStreamOverride ? stderrStreamOverride : jobObject.stderr();
-    ss(jobObject.socket).on(`${jobObject.id}:stdout`, function (stream) {
+    const stdoutStream = stdoutStreamOverride ? stdoutStreamOverride : jobObject.stdout();
+    const stderrStream = stderrStreamOverride ? stderrStreamOverride : jobObject.stderr();
+    ss(jobObject.socket).on(`${jobObject.id}:stdout`, function (stream:WriteStream) {
         stdoutStream.then((_stdout) => {
             logger.info(`${jobObject.id} Pumping stdout [${jobObject.id}:stdout]`);
             //logger.warn(`stdoutStream expected ${util.format(_stdout)}`);
             _stdout.pipe(stream);
         });
     });
-    ss(jobObject.socket).on(`${jobObject.id}:stderr`, function (stream) {
+    ss(jobObject.socket).on(`${jobObject.id}:stderr`, function (stream:WriteStream) {
         stderrStream.then((_stderr) => {
             logger.silly(`${jobObject.id} Pumping stderr [${jobObject.id}:stderr]`);
             //logger.warn(`stderrStream expected ${util.format(_stderr)}`);
@@ -88,14 +95,16 @@ function socketPull(jobObject, stdoutStreamOverride, stderrStreamOverride) {
         });
     });
 
-    jobObject.socket.on("list", (path) => { 
+    jobObject.socket.on("list", (path?:string) => { 
         //logger.info(`List request received for job ${jobID}`)
         jobObject.list(path).then( (list_items)=>  {
             jobObject.socket.emit(`${jobObject.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
         });
     });
     //_SOCKET.on("DoyouMind", ()=> { console.log("I dont mind")});
-    ss(jobObject.socket).on('fsRead', function(stream, data) {
+    jobObject.socket.on("DoyouMind", ()=> { console.log("I dont mind")});
+    //ss(_SOCKET).on('fsRead', function(stream, data) {
+    ss(jobObject.socket).on('fsRead', function(stream:WriteStream, data:any) {
         logger.info(`${jobObject.id} Trying to start pumping fsRead from ${data.name}`);
            /* const dum_stream = new Readable();
            
@@ -127,26 +136,27 @@ function socketPull(jobObject, stdoutStreamOverride, stderrStreamOverride) {
         }).catch(e => jobObject.socket.emit(`${filename}:open_error`, e));
     });*/
 
-    jobObject.socket.emit('completed', JSON.stringify(jobObject));
+    jobObject.socket.emit('completed', jobObject /*JSON.stringify(jobObject)*/);
+    // Can be customized w/ toJSON() // method
 }
-exports.socketPull = socketPull;
+
 /*
  For now we dont do much just boreadcasting were overloaded
 */
-function bouncer(data, socket) {
+export function bouncer(data:any, socket:Socket) {
     logger.debug(`Bouncing ${data.id}`);
-    broadcast('busy');
+    socketRegistry.broadcast('busy');
     socket.emit('bounced', { jobID: data.id });
 }
-exports.bouncer = bouncer;
+
 // We build streams only at granted
-function granted(data, socket) {
+export function granted(data:any, socket:Socket) {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
             logger.debug(`i grant access to ${util.format(data.id)}`);
-            broadcast('available');
+            socketRegistry.broadcast('available');
             let socketNamespace = data.id;
-            let newData = {
+            const newData:Record<string, any> = {
                 script: ss.createStream(),
                 inputs: {}
             };
@@ -171,7 +181,6 @@ function granted(data, socket) {
         }, 250);
     });
 }
-exports.granted = granted;
-function openBar() {
+
+export function openBar() {
 }
-exports.openBar = openBar;

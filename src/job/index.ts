@@ -1,47 +1,21 @@
-import events = require('events');
-import uuidv4 = require('uuid/v4');
-import fs = require('fs');
+import  { EventEmitter } from 'events';
+import { createWriteStream, readdir, chmod, ReadStream, createReadStream, readFileSync, writeFile, writeFileSync, stat } from 'fs';
+
 import mkdirp = require('mkdirp');
-import {format as uFormat} from 'util';
+import {format as uFormat } from 'util';
 import isStream = require('is-stream');
-import path = require("path");
-import stream = require('stream')
+
 import md5 = require('md5');
-import streamLib = require('stream');
+//import streamLib = require('stream');
 import {logger} from '../logger.js';
-
-import engineLib = require('../lib/engine/index.js');
-import cType = require('../commonTypes.js');
-import { dummyEngine } from '../lib/engine/index.js';
-
-import {socketPull} from '../nativeJS/job-manager-server';
-import crypto = require('crypto');
-
+import { JobOpt } from '../shared/types/server';
 import childProc = require('child_process');
-import { SSL_OP_NETSCAPE_REUSE_CIPHER_CHANGE_BUG } from 'constants';
-
-/*
-    job serialization includes
-    workDir relateive to jobMnager file system
-    fileName : hash value
-*/
-
-export interface inputDataSocket { [s: string] : streamLib.Readable|string; }
-export interface jobOptProxyInterface {
-    //engine? : engineLib.engineInterface; 
-    script? : string|streamLib.Readable,
-    jobProfile?: string;
-    cmd? : string,
-    exportVar? : cType.stringMap,
-    inputs? : inputDataSocket|string[]|jobInputs,
-    tagTask? : string,
-    namespace? :string,
-    modules? : string [],
-    socket?:any,//SocketIO.socket WE DONT TYPEGUARD IT YET !!
-}
-
-
-
+import { JobInputs } from './inputs';
+import { JobProxy } from '../shared/types/client'
+import { EngineInterface, getEngine } from '../lib/engine';
+import { JobSerial } from '../shared/types/server'
+import { Readable } from 'stream';
+import { JobBase } from '../shared/types/common/job_model';
 
 /* The jobObject behaves like an emitter
  * Emitter exposes following event:
@@ -58,10 +32,10 @@ export interface jobOptProxyInterface {
  */
 
 // We type socketPullArgs, which is a vanilla nodeJS function
-type socketPullArgs = [jobObject|jobProxy, Promise<streamLib.Readable>, Promise<streamLib.Readable>] | [jobObject|jobProxy, undefined, undefined];
+//type socketPullArgs = [Job|jobProxy, Promise<streamLib.Readable>, Promise<streamLib.Readable>] | [Job|jobProxy, undefined, undefined];
 
 
-export function melting(previousJobs:jobObject, newJob:jobObject) {
+export function melting(previousJobs:Job, newJob:Job) {
     logger.debug("metling!")
     // Local melting
     newJob.isShimmeringOf = previousJobs;
@@ -75,370 +49,28 @@ export function melting(previousJobs:jobObject, newJob:jobObject) {
 }
 
 /*
-    type guard for data container send from the consumer microservice to the JM.
-    aka "newJobSocket" event
-*/
-export function isJobOptProxy(data: any): data is jobOptProxyInterface {
-    if (!data.hasOwnProperty('script') && !data.hasOwnProperty('inputs')) return false;
-
-    if (!isStream(data.script)){
-        logger.error("jobOptProxy script value is not a readable stream");
-        logger.error(`${data.script}`);
-        return false;
-    }
-    for (let k in data.inputs){
-        if ( !isStream(data.inputs[k]) ){
-            logger.error(`jobOptProxy input value \"${k}\" is not a readable stream`);
-            return false;
-        }
-    }
-
-    return true;
-}
-
- export interface jobOptInterface extends jobOptProxyInterface{
-    engine : engineLib.engineInterface, // it is added by the jm.push method
-    
-    // To allow mutliple slurm user 
-    sysSettingsKey?:string,
-   
-    port : number, // JobManager MicroService Coordinates
-    adress : string, // ""
-    workDir : string,
-    emulated? : boolean,
-    cwd? : string,
-    cwdClone? : boolean,
-    ttl? : number
-}
-
-
-
-export interface jobSerialInterface {
-    workDir?: string,
-    id : string,
-    cmd? :string,
-    script? :string,
-    exportVar? :cType.stringMap,
-    modules? :string [],
-    tagTask? :string,
-    scriptHash :string,
-    inputHash? :cType.stringMap
-}
-
-
-/*
     Constuctor performs synchronous operations
     It should be modifed to async
     -> Emit event to confirm safe construction
 */
 
-export class jobInputs extends events.EventEmitter {
-    streams:cType.streamMap = {};
-    paths:cType.stringMap = {};
-    hashes:cType.stringMap = {}
-
-    hashable:boolean=false;
 
 
-    /* Constructor can receive a map w/ two types of value
-        Should be SYNC-like
-    */
-    constructor(data?:{}|any[]/*, skip?:boolean*/){
-        super();
-        
-        let safeNameInput:boolean = true;
-        
-        if(!data)
-            return;
-        
-        
-        let buffer:any = {};
-        // Coherce array in litteral, autogenerate keys
-        if (data.constructor === Array) {
-            safeNameInput = false;
-            let a = <Array<any>>data;
-            for (let e of a.entries())
-                buffer[`file${e[0]}`] = e[1];
-        } else {
-            buffer = data;
-        }
-        if (!cType.isStreamOrStringMap(buffer))
-            throw(`Wrong format for ${uFormat(buffer)}`);
-        let nTotal = Object.keys(buffer).length;
-        logger.debug(`jobInput constructed w/ ${nTotal} items:\n${uFormat(buffer)}`);
-
-        let self = this;
-        for (let key in data) {
-            if( isStream(buffer[key]) )
-                this.streams[key] = <streamLib.Readable>buffer[key];
-            else {
-                try{
-                    //if (!safeNameInput) throw('file naming is unsafe');
-                    let datum:string = <string>buffer[key];
-                    fs.lstatSync(datum).isFile();
-                    let k = path.basename(datum).replace(/\.[^/.]+$/, ""); 
-                    k = key; // GL Aug2018, HOTFIX from taskobject, maybe will break JM -- MS side let'see
-                    this.streams[k] = fs.createReadStream(datum);
-                    logger.debug(`${buffer[key]} is a file, stream assigned to ${k}`);
-
-                } catch(e) {
-                    logger.warn(`Provided input named ${key} is not a file, assuming a string`);                    
-                  // Handle error
-                    if(e.code == 'ENOENT'){
-                    //no such file or directory
-                    //do something
-                    } else {
-                    //do something else
-                    }
-                    this.streams[key] = new streamLib.Readable();
-                  
-                    this.streams[key].push(<string>buffer[key]);
-                    this.streams[key].push(null);
-                    
-                   // this.streams[key].on('data',(e)=>{ logger.error(`${e.toString()}`); });
-                    
-                    // Following block works as intended
-                  /*  let toto:any = new streamLib.Readable();
-                    toto.push(<string>buffer[key]);
-                    toto.push(null);
-                    toto.on('data',(e)=>{ logger.error(`${e.toString()}`); });*/
-                    //
-               }
-            }
-            this.streams[key].on('error', (e) => {
-                self.emit('streamReadError', e);
-            });
-        }      
-    }
-    // Access from client side to wrap in socketIO
-    getStreamsMap():cType.streamMap|undefined {
-        if (this.hashable) {
-            logger.warn('All streams were consumed');
-            return undefined;
-        }  
-        return this.streams;
-    }
-    hash():cType.stringMap|undefined {
-        if (!this.hashable) {
-            logger.warn('Trying to get hash of inputs before write it to files');
-            return undefined;
-        }
-        return this.hashes;
-    }
-    write(location:string):jobInputs{
-        /*let iteratee = function(string:symbol,stream:streamLib.Readable){
-            let target = fs.createWriteStream(`${location}/${symbol}.inp`);
-            stream.pipe(target);//.on('finish', function () { ... });
-        }*/
-        let self = this;
-        let inputs:any[] = [];
-        Object.keys(this.streams).forEach((k) => {
-            let tuple: [string, streamLib.Readable] = [k, self.streams[k]];
-            inputs.push(tuple);
-        });
-
-        let promises = inputs.map(function(tuple) {
-            return new Promise(function(resolve,reject){
-               
-                fs.stat(location,(err, stats)=>{
-                    if(err) {
-                        logger.error("Wrong filr path :: " + err);
-                        reject('path error');
-                        return;
-                    }
-                    let path = `${location}/${tuple[0]}.inp`;
-                    let target = fs.createWriteStream(path);
-                    target.on('error', (msg) => {
-                        logger.error('Failed to open write stream');
-                        reject('createWriteStreamError');
-                    })
-                    //logger.info(`opening ${path} success`);
-
-              
-                    tuple[1].pipe(target);
-                    target
-                    .on('data',(d:any)=>{console.log(d);})
-                    .on('close', () => {                    
-                        // the file you want to get the hash    
-                        let fd = fs.createReadStream(path);
-                        fd.on('error', ()=>{
-                            logger.error(`Can't open for reading ${path}`);
-                        })
-                        let hash = crypto.createHash('sha1');
-                        hash.setEncoding('hex');
-                   // fd.on('error',()=>{logger.error('KIN')});
-                        fd.on('end', function() {
-                            hash.end();
-                            let sum = hash.read().toString();
-                            self.hashes[tuple[0]] = sum; // the desired sha1sum                        
-                            self.paths[tuple[0]] = path; // the path to file   
-                            resolve([tuple[0], path, sum]);//.
-                        });
-// read all file and pipe it (write it) to the hash object
-                        fd.pipe(hash);
-                    });
-                })
-            });
-        });
-       // WE SHOULD HANDLE STREAM WRITE ERROR REJECTION AND PROPAGATE IT FOR 
-       // owner JOB to be set in error status
-       // BUT FIFO mess seems fixed so we'll see later, sorry
-        Promise.all(promises).then(values => {           
-            self.hashable = true;
-            //logger.error(`${values}`);
-            self.emit('OK', values)
-          }, reason => {
-            console.log(reason)
-          });
-
-        return this;
-    }
-    /* Returns a dictionary of inpuSymbols:pathToFile to be dumped by batchDumper */
-    
-}
 
 
-/*
-    This object is meant to live in the job-manager-client space !!!!!!
-    We write it here to use TS.
-    It is basically an empty shell that forwards event and streams
-    W/in jmCore it is used as a virtual class for jobObject
-    Following event occur on the job-manager-client side 
-    job.emit('inputError')
-    job.emit('scriptError')
-*/
-export class jobProxy extends events.EventEmitter implements jobOptProxyInterface{
-    id : string;
 
-    script? :string|streamLib.Readable;
-    cmd? :string;
-    exportVar? : cType.stringMap = {};
-    inputs :jobInputs;
-    jobProfile? : string;
-    tagTask? :string;
-    namespace? :string;
-    modules? :string [] = [];
-    socket?:any;
-
-    isShimmeringOf?:jobObject;
-    hasShimmerings:jobObject[] = [];
-
-
-    constructor(jobOpt:any, uuid?:string){ // Quick and dirty typing
-        super();
-        this.id = uuid ? uuid : uuidv4();
-      
-        if ('modules' in jobOpt)
-            this.modules = jobOpt.modules;
-        if ('jobProfile' in jobOpt)       
-            this.jobProfile =  jobOpt.jobProfile;
-        if('script' in jobOpt)
-            this.script =  jobOpt.script;
-        if ('tagTask' in jobOpt)
-            this.tagTask = jobOpt.tagTask;
-        if ('namespace' in jobOpt)
-            this.namespace = jobOpt.namespace;
-        if ('socket' in jobOpt) 
-            this.socket = jobOpt.socket;
-        if('exportVar' in jobOpt)
-            this.exportVar = jobOpt.exportVar;
-       
-        this.inputs = new jobInputs(jobOpt.inputs);
-
-    }
-    pprint():string {
-        let asString = `Job id : ${this.id}`;
-        asString += this.modules    ? `\n\tmodules    :${this.modules}`    : ''
-        asString += this.jobProfile ? `\n\tjobProfile :${this.jobProfile}` : ''
-        asString += this.script     ? `\n\tscript     :${this.script}`: ''
-        asString += this.tagTask    ? `\n\ttagTask    :${this.tagTask}`: ''
-        asString += this.namespace  ? `\n\tnamespace  :${this.namespace}`: ''
-        asString += this.socket     ? `\n\tsocket     :${this.socket}`: ''
-        asString += this.exportVar  ? `\n\texportVar  :${uFormat(this.exportVar)}`: ''
-        
-        return asString;
-    }
-    // 2ways Forwarding event to consumer or publicMS 
-    // WARNING wont work with streams
-    jEmit(eName:string|symbol, ...args: any[]):boolean {
-        logger.silly(`jEmit(this) ${String(eName)}`);
-        this.hasShimmerings.forEach((shimJob:jobObject) => {
-            shimJob.jEmit(eName, shimJob);
-        }); 
-
-        // We call the original emitter anyhow
-        //logger.debug(`${eName} --> ${uFormat(args)}`);
-        //this.emit.apply(this, eName, args);
-        //this.emit.apply(this, [eName, ...args])
-        if(eName !== 'completed') {
-            this.emit(eName, ...args);
-        // Boiler-plate to emit conform completed event
-        // if the consumer is in the same MS as the JM.
-        } else if( this instanceof jobObject ){
-            let stdout, stderr:Promise<streamLib.Readable>;
-            if (this.isShimmeringOf) {
-                stderr =  this.isShimmeringOf.stderr();
-                stdout = this.isShimmeringOf.stdout();
-            } else {
-                stderr = this.stderr();
-                stdout = this.stdout();
-            }
-            Promise.all([stdout, stderr]).then((results)=>{
-                logger.silly("Emitting completed event");
-                this.emit('completed', ...results)
-            });
-        }
-            
-        //return true;
-        // if a socket is registred we serialize objects if needed, then
-        // pass it to socket
-        //If it exists, 
-        // arguments are tricky (ie: streams), we socketPull
-        // otherwise, we JSON.stringify arguments and emit them on socket
-        if (this.socket) {
-           // logger.warn(`jEmitToSocket ${eName}`);
-            if(eName === 'completed') {
-
-                //logger.debug(`SSP::\n${uFormat(args)}`);
-                //socketPull(...args);//eventName, jobObject
-                let sArgs:socketPullArgs = [this, undefined, undefined];
-                if (this.isShimmeringOf)
-                    sArgs = [this, this.isShimmeringOf.stdout(),  this.isShimmeringOf.stderr()];
-                socketPull(...sArgs);
-                return true;
-            }
-       // Easy to serialize content
-            let _args = args.map((e)=>{
-                return JSON.stringify(e); // Primitive OR 
-            });
-            logger.silly(`socket emiting event ${String(eName)}`);    
-            this.socket.emit(eName, ..._args);
-        }
-        return true;
-    }
-   
-}
-
-export class jobObject extends jobProxy implements jobOptInterface  {
+export class Job extends JobBase implements JobOpt  {
    
     inputSymbols : any = {};
+    //outputFiles :string[]  = [];
     ERR_jokers :number = 3; //  Number of time a job is allowed to be resubmitted if its stderr is non null
     MIA_jokers :number = 3; //  Number of time
     //inputDir : string;
     
-    engine : engineLib.engineInterface;
+    engine : EngineInterface;
 
     fromConsumerMS : boolean = false;
-    /*
-    jobProfile? : string;   
-    script? :string;
-    cmd? :string;
-    exportVar? : cType.stringMap = {};
-    inputs? :string [];
-    tagTask? :string;
-       modules? :string [] = [];
-     namespace? :string;
-    */
+
     port :number; // JobManager MicroService Coordinates
     adress :string; // ""
     workDir :string;
@@ -455,10 +87,12 @@ export class jobObject extends jobProxy implements jobOptInterface  {
     scriptFilePath?:string;
     fileOut? :string;
     fileErr? : string;
-    _stdout? :streamLib.Readable;
-    _stderr? :streamLib.Readable;
+    _stdout? : ReadStream;
+    _stderr? : ReadStream;
+    isShimmeringOf?:Job
+    hasShimmerings:Job[] = []  // Can only be Job instances not JobProxy
 
-    constructor( jobOpt :jobOptInterface, uuid? :string ){
+    constructor( jobOpt:JobOpt, uuid? :string ){
         super(jobOpt, uuid);
         
         this.port = jobOpt.port;
@@ -490,16 +124,43 @@ export class jobObject extends jobProxy implements jobOptInterface  {
             logger.error("Undefined value for sysSettings of job engine, using default engine");
             return;
         }
-        this.engine = engineLib.getEngine(this.engine.specs);
+        this.engine = getEngine(this.engine.specs);
         logger.info(`Overidding default engine for ${this.engine.specs} w/ settings ${sysSettingsKey}`);
         this.engine.setSysProfile(sysSettingsKey);
     }
     
+    async list(path?:string):Promise<string[]> {
+        /* job API for through socket results file access  */
+        const workDirContent:string[] = []
+        const jobID = this.id;
+        logger.info(`Listing !! in ${this.workDir}`);
+       
+        return new Promise ( (resolve, reject) => {
+
+            readdir(this.workDir, (err, files) => {
+                if (err)
+                    reject(err);
+                resolve(files);
+            }); 
+        });
+    }
+    async read(relativePath:string):Promise<ReadStream>{
+        //const subPath = relativePath ?? '';
+        const path = `${this.workDir}/${relativePath}`
+        logger.info(`reading fs from ${path}`)
+        return new Promise ( (resolve, reject) => {
+            const readStream = createReadStream(path);
+            readStream.on('open', () => resolve(readStream));
+            readStream.on('error', (err) => {
+                logger.error(`Error reading from ${path}` + '::' + err);
+                reject(err);
+            });
+        });
+    }
     pprint(): string {
         return super.pprint();
     }
-
-    toJSON():jobSerialInterface{
+    toJSON():JobSerial{
        return this.getSerialIdentity();
     }
     start () :void {
@@ -512,7 +173,7 @@ export class jobObject extends jobProxy implements jobOptInterface  {
                 self.emit('folderCreationError', msg, err, self);
                 return;
             }
-            fs.chmod(self.workDir, '777', function(err) {
+            chmod(self.workDir, '777', function(err) {
                 if (err) {
                     var msg = 'failed to change perm job ' + self.id + ' directory, ' + err;
                     self.emit('folderSetPermissionError', msg, err, self);
@@ -525,8 +186,8 @@ export class jobObject extends jobProxy implements jobOptInterface  {
     }
     // Rewrite This w/ jobInputObject calls
     // DANGER script HASH not possible on string > 250MB
-    getSerialIdentity () : jobSerialInterface {
-        let serial : jobSerialInterface = {
+    getSerialIdentity ():JobSerial {
+        let serial:JobSerial = {
             workDir : this.workDir,
             id : this.id,
             cmd : this.cmd,
@@ -540,7 +201,7 @@ export class jobObject extends jobProxy implements jobOptInterface  {
         let content:string = '';
         if(this.script) {
             //logger.debug(`Accessing${<string>this.scriptFilePath}`);
-            content = fs.readFileSync(<string>this.scriptFilePath).toString(); // TO CHECK
+            content = readFileSync(<string>this.scriptFilePath).toString(); // TO CHECK
         } else if(this.cmd) {
             content = this.cmd;
         } else {
@@ -562,7 +223,7 @@ export class jobObject extends jobProxy implements jobOptInterface  {
             let self = this;
             let fname = this.workDir + '/' + this.id + '.batch';
             batchDumper(this).on('ready', function(string) {
-                fs.writeFile(fname, string, function(err) {
+                writeFile(fname, string, function(err) {
                     if (err) {
                         return console.log(err);
                     }
@@ -640,9 +301,9 @@ export class jobObject extends jobProxy implements jobOptInterface  {
         
         if(this.emulated) {
             let fNameStdout:string = this.fileOut ? this.fileOut : this.id + ".out"; 
-            let streamOut = fs.createWriteStream(this.workDir + '/' + fNameStdout);
+            let streamOut = createWriteStream(this.workDir + '/' + fNameStdout);
             let fNameStderr:string = this.fileErr ? this.fileErr : this.id + ".err"; 
-            let streamErr = fs.createWriteStream(this.workDir + '/' + fNameStderr);
+            let streamErr = createWriteStream(this.workDir + '/' + fNameStderr);
 
             child.stdout.pipe(streamOut);
             child.stderr.pipe(streamErr);
@@ -656,20 +317,20 @@ export class jobObject extends jobProxy implements jobOptInterface  {
         this.submit(fname);
     }
 
-    async stdout():Promise<streamLib.Readable>{
+    async stdout():Promise<Readable>{
         logger.silly(`async stdout call at ${this.id} `);
-        let fNameStdout:string = this.fileOut ? this.fileOut : this.id + ".out";
-        let fPath:string = this.workDir + '/' + fNameStdout;
-        let stdoutStream:streamLib.Readable = await dumpAndWrap(fPath, this._stdout);
+        const fNameStdout:string = this.fileOut ? this.fileOut : this.id + ".out";
+        const fPath:string = this.workDir + '/' + fNameStdout;
+        const stdoutStream:Readable = await dumpAndWrap(fPath, this._stdout);
 
         return stdoutStream;
     }
 
-    async stderr():Promise<streamLib.Readable>{
+    async stderr():Promise<Readable>{
         logger.silly(`async stderr call at ${this.id} `)
-        let fNameStderr:string = this.fileErr ? this.fileErr : this.id + ".err";
-        let fPath:string = this.workDir + '/' + fNameStderr;
-        let stderrStream:streamLib.Readable = await dumpAndWrap(fPath, this._stderr);
+        const fNameStderr:string = this.fileErr ? this.fileErr : this.id + ".err";
+        const fPath:string = this.workDir + '/' + fNameStderr;
+        const stderrStream:Readable = await dumpAndWrap(fPath, this._stderr);
 
         return stderrStream;
     }
@@ -680,18 +341,77 @@ export class jobObject extends jobProxy implements jobOptInterface  {
         this.fileErr = fStderrName;
         this.workDir = workPath;
     }
+
+        // 2ways Forwarding event to consumer or publicMS 
+    // WARNING wont work with streams
+    jEmit(eName:string|symbol, ...args: any[]):boolean {
+        logger.silly(`jEmit(this) ${String(eName)}`);
+        this.hasShimmerings.forEach((shimJob:JobProxy) => {
+            shimJob.jEmit(eName, shimJob);
+        }); 
+
+        // We call the original emitter anyhow
+        //logger.debug(`${eName} --> ${uFormat(args)}`);
+        //this.emit.apply(this, eName, args);
+        //this.emit.apply(this, [eName, ...args])
+        if(eName !== 'completed') {
+            this.emit(eName, ...args);
+        // Boiler-plate to emit conform completed event
+        // if the consumer is in the same MS as the JM.
+        } else if( this instanceof Job ){
+            let stdout, stderr:Promise<Readable>;
+            if (this.isShimmeringOf) {
+                stderr =  this.isShimmeringOf.stderr();
+                stdout = this.isShimmeringOf.stdout();
+            } else {
+                stderr = this.stderr();
+                stdout = this.stdout();
+            }
+            Promise.all([stdout, stderr]).then((results)=>{
+                logger.silly("Emitting completed event");
+                this.emit('completed', ...results)
+            });
+        }
+            
+        //return true;
+        // if a socket is registred we serialize objects if needed, then
+        // pass it to socket
+        //If it exists, 
+        // arguments are tricky (ie: streams), we socketPull
+        // otherwise, we JSON.stringify arguments and emit them on socket
+        if (this.socket) {
+           // logger.warn(`jEmitToSocket ${eName}`);
+            if(eName === 'completed') {
+
+                //logger.debug(`SSP::\n${uFormat(args)}`);
+               
+                const _parentJob:Job|undefined = this.isShimmeringOf;
+                socketPull(this, this.isShimmeringOf ? this.isShimmeringOf.stdout() : undefined,
+                                 this.isShimmeringOf ? this.isShimmeringOf.stderr() : undefined
+                        );
+                return true;
+            }
+       // Easy to serialize content
+            let _args = args.map((e)=>{
+                return JSON.stringify(e); // Primitive OR s
+            });
+            logger.silly(`socket emiting event ${String(eName)}`);    
+            this.socket.emit(eName, ..._args);
+        }
+        return true;
+    }
 }
 
 
 
-function jobIdentityFileWriter(job : jobObject) :void {
+function jobIdentityFileWriter(job : Job) :void {
     let serial = job.getSerialIdentity();
     let json = JSON.stringify(serial);
-    fs.writeFileSync(job.workDir + '/jobID.json', json, 'utf8');
+    writeFileSync(job.workDir + '/jobID.json', json, 'utf8');
 }
 
-function batchDumper(job: jobObject) {
-    let emitter : events.EventEmitter = new events.EventEmitter();
+function batchDumper(job: Job) {
+    let emitter : EventEmitter = new EventEmitter();
     let batchContentString  : string = "#!/bin/bash\n";
     let adress : string = job.emulated ? 'localhost' : job.adress;
     var trailer = 'echo "JOB_STATUS ' + job.id + ' FINISHED"  | nc -w 2 ' + adress + ' ' + job.port + " > /dev/null\n";
@@ -745,24 +465,24 @@ function batchDumper(job: jobObject) {
     return emitter;
 }
 
-function _copyScript(job : jobObject, fname : string, emitter : events.EventEmitter) {
+function _copyScript(job:Job, fname:string, emitter:EventEmitter) {
     //if (!job.script)
     //    return;
-    let src : streamLib.Readable;
+    let src:Readable;
     if(isStream(job.script)) {
-        src = <streamLib.Readable>job.script;        
+        src = <Readable>job.script;        
     } else {
-        src = fs.createReadStream(<string>job.script);
+        src = createReadStream(<string>job.script);
     }
     src.on("error", function(err) {
         job.jEmit('scriptReadError', err, job);
     });
-    var wr = fs.createWriteStream(fname);
+    var wr = createWriteStream(fname);
     wr.on("error", function(err) {
         job.jEmit('scriptWriteError', err, job);
     });
     wr.on("close", function() {
-        fs.chmod(fname, '777', function(err) {
+        chmod(fname, '777', function(err) {
             if (err) {
                 job.jEmit('scriptSetPermissionError', err, job);
             } else {
@@ -781,15 +501,15 @@ function _copyScript(job : jobObject, fname : string, emitter : events.EventEmit
         we try to pump from _stdio
     return empty stream
 */
-function dumpAndWrap(fName:string/*, localDir:string*/, sourceToDump?:streamLib.Readable):Promise<streamLib.Readable>{
+function dumpAndWrap(fName:string/*, localDir:string*/, sourceToDump?:Readable):Promise<Readable>{
 
-    let p = new Promise<streamLib.Readable>(function(resolve) {
+    let p = new Promise<Readable>(function(resolve) {
 
-        fs.stat(fName,(err, stat)=>{
+        stat(fName,(err, stat)=>{
             if(!err) {
                 if(stat.isFile()) {     
                     logger.debug(`Found a file to wrap at ${fName}`);
-                    let stream:streamLib.Readable = fs.createReadStream(fName, {
+                    let stream:Readable = createReadStream(fName, {
                         'encoding': 'utf8'
                     });
                     resolve(stream);
@@ -801,10 +521,10 @@ function dumpAndWrap(fName:string/*, localDir:string*/, sourceToDump?:streamLib.
                 if(sourceToDump){
 
                     logger.debug(`Found alternative source dumping it from \n ${uFormat(sourceToDump)}`);
-                    let target = fs.createWriteStream(fName, {'flags': 'a'});
+                    let target = createWriteStream(fName, {'flags': 'a'});
                     sourceToDump.pipe(target);
                     target.on('close', () =>{
-                    let stream:streamLib.Readable = fs.createReadStream(fName, {
+                    let stream:Readable = createReadStream(fName, {
                         'encoding': 'utf8'
                         });
                         logger.debug(`should resolve with ${uFormat(stream)}`);
@@ -813,7 +533,7 @@ function dumpAndWrap(fName:string/*, localDir:string*/, sourceToDump?:streamLib.
                     });
                 } else {
                     logger.error("Output file error, Still cant open output file, returning empy stream");
-                    let dummyStream:streamLib.Readable = new streamLib.Readable();
+                    let dummyStream:Readable = new Readable();
                     dummyStream.push(null);
                     resolve(dummyStream);
                     return;
