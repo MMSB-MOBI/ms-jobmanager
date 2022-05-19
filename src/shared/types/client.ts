@@ -4,15 +4,14 @@ import { JobBase } from './common/job_model';
 
 import { Readable } from 'stream';
 
-const isStream = require('is-stream');
-
+import { format as uFormat } from 'util';
 /*
 import { EventEmitter} from 'events';
 import { JobInputs } from '../../job/inputs';
 import { Job } from '../../job';
 import { logger } from '../../logger';
 import { Socket } from 'socket.io-client';
-import { format as uFormat } from 'util';
+const isStream = require('is-stream');
 import { socketPull } from '../../comLayer/serverShell';
 */
 
@@ -22,9 +21,9 @@ export function JobOptClientFactory(opt:any):JobOptProxy {
     // We chack for mandatory set of key
 
     if(jobOptProxy.script && jobOptProxy.cmd)
-        throw('jobOpt has conflicting script and cmd attributes\n${uFormat(jobOptProxy)}');
+        throw(`jobOpt has conflicting script and cmd attributes\n${uFormat(jobOptProxy)}`);
     if(!jobOptProxy.script && !jobOptProxy.cmd)
-        throw('jobOpt must have at least a script or a cmd attributes\n${uFormat(jobOptProxy)}');
+        throw(`jobOpt must have at least a script or a cmd attributes\n${uFormat(jobOptProxy)}`);
 
     return jobOptProxy;
 }

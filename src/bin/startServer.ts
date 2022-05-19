@@ -1,7 +1,7 @@
 import jobManagerCore = require('../index.js');
 import {logger, setLogLevel, setLogFile} from '../logger.js';
 import program = require('commander');
-import {selfTest} from '../tests/testTools';
+//import {selfTest} from '../tests_to_update/testTools';
 import fs = require('fs');
 
 /*
@@ -55,8 +55,10 @@ if (!baseParameters.engineBinaries){ //program.bean
 }
 
 jobManagerCore.start(baseParameters).on('ready', () => {
+  /*
     if(program.self)
         selfTest(jobManagerCore, program.self);
+        */
 }).on('error', (msg) => {
     logger.fatal(msg)
 });

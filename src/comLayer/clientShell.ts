@@ -11,7 +11,7 @@ let socket:Socket<ServerToClientEvents, ClientToServerEvents>;
 let events = require('events');
 let my_logger = require("../logger.js")
 let logger = my_logger.logger
-import { ServerStatus } from '../shared/types/server'
+import { ServerStatus } from '../shared/types/common'
 import { JobSerial } from '../shared/types/server'
 import { Writable } from 'stream';
 
@@ -209,7 +209,7 @@ class jobAccumulator extends EventEmitter {
             logger.error(`Following job not found in the process pool ${jRef.id}`);
             
             jRef.emit('lostJob', jRef);
-            self.deleteJob(<string>jobSerial.id);
+            self.deleteJob(jobSerial.id);
         });
         //  *          'listError, {String}error) : the engine failed to list process along with error message
 
@@ -263,7 +263,7 @@ class jobAccumulator extends EventEmitter {
 
 const jobAccumulatorObject = new jobAccumulator();
 
-function start(opt:any) {
+export function start(opt:any):Promise<EventEmitter> {
     return new Promise ( (resolve, reject) => {    
         let url = 'http://' + opt.TCPip + ':' + opt.port;
         logger.debug(`jobmanager core microservice coordinates defined as \"${url}\"`);
@@ -317,7 +317,7 @@ function pull(jobSerial:JobSerial) { // Should not need to decode anymore
     */
     return;
 }
-function push(data:any):JobProxy {
+export function push(data:any):JobProxy {
     // Minimal combinaison of letter 
     /*
     if(!isJobOptProxy(data))
@@ -362,7 +362,7 @@ function buildStreams(data:any, job:JobProxy) {
     return data;
 }
 
-function get_socket() {
+export function get_socket() {
     return socket;
 }
 
@@ -370,14 +370,14 @@ export class JobFileSystemInterface {
    /* private socket:any;
     private jobID:string;
     */
-   socket:any;
-   jobID:any;
+   socket:Socket;
+   jobID:string;
 
     constructor(jobID:string/*, socket:string*/) {
         this.jobID = jobID;
         this.socket = socket;
     }
-    async list(path?:string/*?:string*/) {
+    async list(path?:string/*?:string*/):Promise<string[]> {
         this.socket.emit('list', {jobID: this.jobID, path});
         
         return new Promise( (res, rej) => {
@@ -387,7 +387,7 @@ export class JobFileSystemInterface {
         });
     }
 
-    async read(fileName:string):Promise<string>{
+    async read(fileName:string):Promise<Readable>{
         return new Promise( (res, rej) => {
         // console.log("FS-INTERFACE CONTEXT##################");
             const netStream = ss.createStream();
@@ -462,10 +462,3 @@ export class JobFileSystemInterface {
     }
 */
 }
-
-
-
-export {push, start, get_socket}
-//exports.push = push;
-//exports.start = start;
-//exports.hello =

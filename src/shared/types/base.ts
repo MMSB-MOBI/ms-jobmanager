@@ -5,7 +5,7 @@ import isStream = require('is-stream');
 import { Readable } from "stream";
 import { readable as isReadable } from 'is-stream';
 import { JobInputs } from '../../job/inputs';
-
+import { accessSync, constants } from 'fs';
 /*
     Usual basic container type interface and predicates
 */
@@ -106,5 +106,21 @@ export function isArrayOfString(obj:any): obj is string[] {
 
 
 export function isReadableOrString(obj: any): obj is Readable|string {
-    return isStream(obj) || typeof(obj) != 'string';
+    return isStream(obj) || typeof(obj) == 'string';
+}
+
+export type Path = string;
+
+export function isPath(maybePath:string): maybePath is Path {
+    try {
+        accessSync(maybePath, constants.R_OK);
+        return true;
+      } catch (err) {
+        return false;
+      }
+}
+
+export function isReadableOrPath(obj: any): obj is Readable|Path {
+   
+    return isStream(obj) || isPath(obj);
 }

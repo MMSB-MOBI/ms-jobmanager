@@ -3,8 +3,9 @@ import { JobInputs } from '../../../job/inputs';
 import { Readable } from 'stream';
 import { logger } from '../../../logger';
 import { InputDataSocket} from '../../../shared/types/base';
-export type ServerStatus = 'busy' | 'available' 
+ 
 import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, isReadableOrString} from '../base';
+import { Path, isReadableOrPath } from '../base';
 
 export interface JobOptBase {     
     id?:string;
@@ -15,7 +16,7 @@ export interface JobOptBase {
     jobProfile?: string;    
     modules? : string [],    
     namespace? :string,
-    script? : Readable|string,    
+    script? : Readable|Path,    
     socket?:Socket,
     sysSettingsKey?:string,
     tagTask? : string,    
@@ -72,8 +73,8 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
             else
                 jobOptBase[key] = value;
         if(key == 'script')
-            if(!isReadableOrString(value))
-                typeLogError(key, 'Readable|string', value);
+            if(!isReadableOrPath(value))
+                typeLogError(key, 'Readable|Path', value);
             else
                 jobOptBase[key] = value;
         if(key == 'socket')
