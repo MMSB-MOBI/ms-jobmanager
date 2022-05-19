@@ -1,7 +1,6 @@
 /* Now that we have a profile typeguard we should consider loading profile jit */
 import {logger} from '../../../logger.js';
-import cType = require('../../../commonTypes.js');
-import {profiles} from './slurm.js'
+import {stringMap, isStringMap } from '../../../shared/types/base';
 
 export interface profileInterface {
     'comments' : string;
@@ -10,7 +9,7 @@ export interface profileInterface {
 
 
 export interface profileDefinition {
-    [s:string] : cType.stringMap;
+    [s:string] : stringMap;
 }
 
 export function isProfile(obj: any): obj is profileInterface {
@@ -20,7 +19,7 @@ export function isProfile(obj: any): obj is profileInterface {
 
     for(let key in obj.defintions){
         if(typeof(key) != 'string') return false;
-        if(!cType.isStringMap(obj[key])) return false;
+        if(!isStringMap(obj[key])) return false;
     }
     return true;
 }
@@ -45,7 +44,7 @@ export function defaultGetPreprocessorContainer(profileKey:string|undefined, pro
     return  profileContainer.definitions[profileKey];
 }
 
-function _preprocessorDump (obj:cType.stringMap):string {
+function _preprocessorDump (obj:stringMap):string {
     let str = '';
     for (let k in obj)
         str += `export ${k}=${obj[k]}\n`;

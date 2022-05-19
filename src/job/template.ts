@@ -9,7 +9,7 @@ interface jtSpecs {
     TCPport : number
 }
 
-export function coherceIntoJobTemplate(jobProfileString:string, _jt:any, workDir:string, jtSpec:jtSpecs):jobOptInterface {
+export function coherceIntoJobTemplate(jobProfileString:string, _jt:any, workDir:string, jtSpec:jtSpecs):JobOpt {
 
     let jt:JobOpt=  {
         // "engineHeader": engine.generateHeader(jobID, jobProfileString, workDir),

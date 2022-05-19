@@ -1,4 +1,4 @@
-import {logger} from './logger.js';
+import {logger} from '../../logger';
 import { mkdirSync, existsSync} from 'fs'; // file system
 
 
@@ -16,7 +16,7 @@ import { mkdirSync, existsSync} from 'fs'; // file system
         try {
             mkdirSync(cacheDir);
         } catch (e) {
-            if (e.code != 'EEXIST') { 
+            if ((e as any).code != 'EEXIST') { 
                 logger.error(`Can't create cache folder reason:\n${e}}`);
                 throw e;
             }

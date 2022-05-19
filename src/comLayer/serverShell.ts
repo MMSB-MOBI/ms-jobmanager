@@ -3,9 +3,7 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import * as util from 'util';
 import { v4 as uuidv4 } from 'uuid';
-//let main = require("../index");
-import {ServerStatus} from '../shared/types/common';
-import { JobProxy } from '../shared/types/client'
+import {ServerStatus} from '../shared/types/server';
 import { ReadStream, WriteStream } from 'fs';
 
 import { Job } from '../job'
@@ -15,7 +13,7 @@ import { Readable } from 'stream';
 const my_logger = require('../logger.js');
 const logger = my_logger.logger;
 
-import { ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData } from '../shared/types/socket-io';
+import { ClientToServerEvents, ServerToClientEvents,/* InterServerEvents, SocketData*/ } from '../lib/socket-management/interfaces';
 /*let io:SocketIOServer;
 let socketRegistry:Record<string, Socket> = {};
 */
@@ -30,7 +28,7 @@ export class SocketRegistry extends EventEmitter {
     constructor(port:number){
         super();
         this.port   = port;
-        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents, SocketData>(port);
+        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents/*, InterServerEvents, SocketData*/>(port);
         this.server.on('connection', (socket:Socket)=> {
             const uuid = this.register(socket);
             this.emit('connection'); // for login purposes
@@ -95,10 +93,13 @@ export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Pro
         });
     });
 
+    if (!jobObject.socket)
+        return;
     jobObject.socket.on("list", (path?:string) => { 
         //logger.info(`List request received for job ${jobID}`)
         jobObject.list(path).then( (list_items)=>  {
-            jobObject.socket.emit(`${jobObject.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
+            if (jobObject.socket)
+                jobObject.socket.emit(`${jobObject.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
         });
     });
     //_SOCKET.on("DoyouMind", ()=> { console.log("I dont mind")});

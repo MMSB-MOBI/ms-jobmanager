@@ -1,4 +1,6 @@
-import { JobSerial } from './server';
+/* DEPRECATED  */
+
+/*import { JobSerial } from './server';
 
 export interface ServerToClientEvents {
     noArg: () => void;
@@ -20,3 +22,4 @@ export interface SocketData {
     name: string;
     age: number;
   }
+  */

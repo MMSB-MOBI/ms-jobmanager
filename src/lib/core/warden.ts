@@ -1,19 +1,20 @@
-import {logger} from './logger.js';
-import jmServer = require('./nativeJS/job-manager-server.js');
-import liveMemory = require('./lib/pool.js');
-import events = require('events');
-import * as engineLib from './lib/engine' ;
+import {logger} from '../../logger';
+import { openBar } from '../../comLayer/serverShell'
+import * as liveMemory from './pool';
+import { EventEmitter } from 'events';
+import { EngineInterface, EngineListData } from '../engine'
 import {format as uFormat} from 'util';
-import * as jobLib from './job';
+import { Job } from '../../job';
+import { Socket } from 'socket.io';
 
-let engine:engineLib.engineInterface, 
+let engine:EngineInterface, 
 nWorker:number,
 wardenPulse:number,
-topLevelEmitter : events.EventEmitter;
+topLevelEmitter : EventEmitter;
 
 interface wardenSpecs {
-    topLevelEmitter : events.EventEmitter, 
-    engine:engineLib.engineInterface, 
+    topLevelEmitter : EventEmitter, 
+    engine:EngineInterface, 
     nWorker:number,
     wardenPulse: number
 }
@@ -26,10 +27,11 @@ export function setWarden(spec:wardenSpecs):NodeJS.Timer {
 }
 
 
-export function wardenKick(msg:string, error:string, job:jobLib.jobObject):void{
+export function wardenKick(msg:string, error:string, job:Job):void{
     logger.silly('wardenKick')
-    liveMemory.removeJob({jobObject : job})
-    job.socket.emit('fsFatalError', msg, error, job.id)
+    liveMemory.removeJob({jobObject : job});
+    if (job.socket)
+        job.socket.emit('fsFatalError', msg, error, job.id);
 }
 
 
@@ -44,7 +46,7 @@ export function jobWarden():void {
         logger.debug(`liveMemory changed ${prevMemSize} => ${_}`);
         prevMemSize = _;
     }
-    engine.list().on('data', function(d:engineLib.engineListData) {
+    engine.list().on('data', function(d:EngineListData) {
         logger.silly(`${uFormat(d)}`);
         for (let job of liveMemory.startedJobiterator()) {
             let jobSel = { jobObject : job };            
@@ -55,7 +57,7 @@ export function jobWarden():void {
                     const tmpJob = job;
                     liveMemory.removeJob(jobSel);
                     if(liveMemory.size("notBound") < nWorker)
-                        jmServer.openBar();
+                        openBar();
                     logger.error(`job ${job.id} definitively lost`)    
                     tmpJob.jEmit('lostJob', tmpJob);
                 }
@@ -73,7 +75,7 @@ export function jobWarden():void {
     });
 }
 
-function ttlTest(job:jobLib.jobObject, ) {
+function ttlTest(job:Job, ) {
     if (!job.ttl) return;
     let jobSel = { jobObject : job }; 
     let nCycle = liveMemory.getCycle(jobSel);
@@ -90,7 +92,7 @@ function ttlTest(job:jobLib.jobObject, ) {
             //eventEmitter.emit("killedJob", job.id);
             liveMemory.removeJob(jobSel);
             if(liveMemory.size() < nWorker)
-                jmServer.openBar();
+                openBar();
         }); // Emiter is passed here if needed
     }
 }

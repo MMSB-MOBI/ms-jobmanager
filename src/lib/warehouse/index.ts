@@ -1,7 +1,7 @@
 import * as clientWH from 'ms-warehouse';
 import {EventEmitter} from 'events';
-import {jobSerialInterface} from './job';
-import {logger} from './logger.js';
+import { JobSerial } from '../../shared/types/server';
+import {logger} from '../../logger';
 
 let warehouseAddress = "127.0.0.1";
 let portSocket       = 2222;
@@ -21,7 +21,7 @@ export function setParameters(params:whParams){
     portSocket       = params.portSocket;
 }
 
-export function MS_lookup(jobTemplate:jobSerialInterface){
+export function MS_lookup(jobTemplate:JobSerial){
     let emitter = new EventEmitter();
   
     let jobConstraints = {

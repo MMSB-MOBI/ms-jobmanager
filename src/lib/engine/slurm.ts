@@ -1,14 +1,12 @@
-import events = require('events');
-import path = require('path');
+import { EventEmitter } from 'events';
 import util = require('util');
 import childP = require('child_process');
-import {logger} from '../../logger.js';
-
+import {logger} from '../../logger';
+import { Job } from '../../job';
 
 
 //import engineInterface} from 'index.js';
-import engineLib = require('./index.js');
-import cType = require('../../commonTypes.js');
+import { EngineInterface, EngineSpecs, preprocessorMapperType, BinariesSpec} from './index.js';
 import {profileInterface, isProfile} from './profiles/index.js';
 
 import {profiles, engineSys} from './profiles/slurm.js';
@@ -20,7 +18,7 @@ type squeueField = 'id'|'partition'|'nameUUID'|'status';
 type squeueData = { [K in squeueField ] : string[]; };
 
 
-let preprocessorMapper:engineLib.preprocessorMapperType = {
+let preprocessorMapper:preprocessorMapperType = {
     nNodes: function(v:string):string {
         return "#SBATCH -N " + v + " # Number of nodes, aka number of worker \n"
     },
@@ -49,16 +47,16 @@ let preprocessorMapper:engineLib.preprocessorMapperType = {
 
 
 
-export class slurmEngine implements engineLib.engineInterface {
+export class slurmEngine implements EngineInterface {
     // Typeguard this w/ setters and path/Exec check
     submitBin:string = '/usr/bin/sbatch'; 
     cancelBin:string = '/usr/bin/scancel';
     queueBin:string  = '/usr/bin/squeue';
-    specs:engineLib.engineSpecs='slurm';
+    specs:EngineSpecs='slurm';
     iCache?:string;
     execUser?:string; 
 
-    constructor(engineBinaries:engineLib.BinariesSpec|undefined){
+    constructor(engineBinaries:BinariesSpec|undefined){
         if (engineBinaries){
             this.submitBin = engineBinaries.submitBin
             this.queueBin = engineBinaries.queueBin
@@ -87,7 +85,7 @@ export class slurmEngine implements engineLib.engineInterface {
         logger.debug(`preprocesor container:\n${util.format(processorType)}`);
         return _preprocessorDump(jobID, processorType);
     }
-    list ():events.EventEmitter {
+    list ():EventEmitter {
         let emitter = _squeue(this,'');
 
         /*
@@ -107,8 +105,8 @@ export class slurmEngine implements engineLib.engineInterface {
                 'cancelError', {String} message : An error occured during job cancelation
                 'listError', {String} message : An error occured during joblisting"
 */
-    kill(jobList:engineLib.jobObject[], overrideBinary?:string) {
-        var emitter = new events.EventEmitter();
+    kill(jobList:Job[], overrideBinary?:string) {
+        var emitter = new EventEmitter();
 
         var targetJobID = jobList.map(function(jobObj) {
             return jobObj.id;
@@ -142,7 +140,7 @@ export class slurmEngine implements engineLib.engineInterface {
 
 
 
-function _preprocessorDump (id:string, preprocessorOpt:cType.stringMap):string {
+function _preprocessorDump (id:string, preprocessorOpt:Record<string,string>):string {
     let string = "#SBATCH -J " + id + "\n";
     string += "#SBATCH -o " + id + ".out\n";
     string += "#SBATCH -e " + id + ".err\n";
@@ -196,7 +194,7 @@ function _preprocessorDump (id:string, preprocessorOpt:cType.stringMap):string {
     return string;
 }
 
-function _kill(engine:slurmEngine, processIDs:number[], emitter:events.EventEmitter, overrideBinary?:string) {
+function _kill(engine:slurmEngine, processIDs:number[], emitter:EventEmitter, overrideBinary?:string) {
     let exec_cmd = childP.exec;
     if (processIDs.length == 0) {
         emitter.emit('emptyExit');
@@ -229,10 +227,10 @@ function _kill(engine:slurmEngine, processIDs:number[], emitter:events.EventEmit
  * Data are formated into a literal.
  * @paramSqueue {string} optional. For example : ' -o "%j %i" ' // not implemented yet
  */
-function _squeue(engine:slurmEngine, paramSqueue:string=''):events.EventEmitter {
+function _squeue(engine:slurmEngine, paramSqueue:string=''):EventEmitter {
    // if (!paramSqueue) paramSqueue = '';
     //paramSqueue = ''; // to remove when it will be take into account in the implementation
-    let emitter = new events.EventEmitter();
+    let emitter = new EventEmitter();
     let squeueRes_dict:squeueData = {
         'id': [],
         'partition': [],

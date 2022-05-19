@@ -1,16 +1,8 @@
-import {logger} from '../../logger.js';
-import jobLib = require('../../job');
+import { logger } from '../../logger';
 import { Job } from '../../job';
-
-import events = require('events');
-
-//export {jobObject} from '../../job';
-
-//import cType = require('../../commonTypes.js');
+import { EventEmitter } from 'events';
 import *  as nixLike from './localNixLike';
-//import nixLike = require('./localNixLike.js');
 import *  as slurm from './slurm';
-//import slurm = require('./slurm.js');
 
 export interface EngineListData {
         'id'?:        string[];
@@ -27,16 +19,16 @@ export interface EngineHeaderFunc {
     (jobID:string, jobProfileKey:string|undefined, workDir:string) :string;
 }
 export interface EngineList {
-    () :events.EventEmitter;
+    () :EventEmitter;
 }
 export interface EngineTest {
     () :string;
 }
 export interface EngineKill {
-    (jobList:Job[], overrideBinary?:string) :events.EventEmitter;
+    (jobList:Job[], overrideBinary?:string) :EventEmitter;
 }
 
-export interface engineExecUser {
+export interface EngineExecUser {
     ():string|undefined
 }
 
@@ -48,14 +40,14 @@ export interface EngineInterface {
     list : EngineList;
     kill : EngineKill;
     testCommand : EngineTest;
-    specs:engineSpecs;
+    specs:EngineSpecs;
     setSysProfile : SetSysProfileFunc;
     iCache?:string;
     execUser?: string; 
 }
 
-export type engineSpecs = "slurm" | "sge" | "emulate" | "dummy";
-export function isEngineSpec(type: string): type is engineSpecs {
+export type EngineSpecs = "slurm" | "sge" | "emulate" | "dummy";
+export function isEngineSpec(type: string): type is EngineSpecs {
     return type == "slurm" || type ==  "sge" || type ==  "emulate";
 }
 
@@ -80,7 +72,7 @@ export interface preprocessorMapFn {
 export type preprocessorMapperType = { [s:string] : preprocessorMapFn }
 
 //Returns new instance of engine Object
-export function getEngine(engineName?:engineSpecs, engineBinaries?:BinariesSpec): EngineInterface{
+export function getEngine(engineName?:EngineSpecs, engineBinaries?:BinariesSpec): EngineInterface{
     //logger.info("Get engine " + Object.keys(engineBinaries))
     logger.debug(`Asked engine symbol ${engineName}`);
 
@@ -106,7 +98,7 @@ export function getEngine(engineName?:engineSpecs, engineBinaries?:BinariesSpec)
 export class dummyEngine implements EngineInterface {
     constructor() {
     }
-    specs:engineSpecs='dummy';
+    specs:EngineSpecs='dummy';
     submitBin:string = 'dummyExec';
     //logger.info(engineBinaries)
     setSysProfile(a:string) {
@@ -116,7 +108,7 @@ export class dummyEngine implements EngineInterface {
         return 'dummy Engine header';
     }
     list() {
-        let evt = new events.EventEmitter();
+        let evt = new EventEmitter();
         let t:NodeJS.Timer =  setTimeout(function() {
             evt.emit("data", <EngineListData>{  'id': ['dummyID'], 'partition': ['dummyPartition'],
                                 'nameUUID': ['dummyNameUUID'], 'status': ['dummyStatus'] });
@@ -125,7 +117,7 @@ export class dummyEngine implements EngineInterface {
         return evt;
     }
     kill(jobList : Job[]) {
-        return new events.EventEmitter();
+        return new EventEmitter();
     }
     testCommand() {
         return 'sleep 10; echo "this is a dummy command"';

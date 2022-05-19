@@ -1,28 +1,21 @@
-import events = require('events');
-import path = require('path');
-import util = require('util');
-import {logger} from '../../logger.js';
+import { EventEmitter } from 'events'
+import * as path from 'path';
+import { logger } from '../../logger.js';
+import { EngineInterface, EngineSpecs, EngineListData } from './index';
+import { profileInterface } from './profiles/index';
+import { Job } from '../../job';
+import profiles from './profiles/localNixLike'
+import { lookup, psData } from './ps';
 
-//import engineInterface} from 'index.js';
-import engineLib = require('./index.js');
-import cType = require('../../commonTypes.js');
-import {profileInterface, isProfile} from './profiles/index.js';
-
-import profiles from './profiles/localNixLike.js'
-
-
-import {lookup,psData} from './ps.js';
-
-import {engineListData} from './index.js';
-import {defaultGetPreprocessorString as getPreprocessorString} from './profiles/index.js';
+import {defaultGetPreprocessorString as getPreprocessorString} from './profiles';
 
 
 let localProfiles:profileInterface = profiles;
 
 
-export class nixLikeEngine implements engineLib.engineInterface {
-    submitBin:string = '/bin/bash';
-    specs:engineLib.engineSpecs='emulate';
+export class nixLikeEngine implements EngineInterface {
+    submitBin:string  = '/bin/bash';
+    specs:EngineSpecs ='emulate';
     constructor() {
 
     }
@@ -35,8 +28,8 @@ export class nixLikeEngine implements engineLib.engineInterface {
         return "# This is local default header\n" +  getPreprocessorString (jobProfileKey, localProfiles/*,jobID,*/);
     }
 
-    list ():events.EventEmitter {
-        let emitter = new events.EventEmitter();
+    list ():EventEmitter {
+        let emitter = new EventEmitter();
 
         let regex = /\.batch$/;
 
@@ -62,7 +55,7 @@ export class nixLikeEngine implements engineLib.engineInterface {
     *           (3) @processRecord[key] is an array of string (@ival), in which we search for the regex.
     */
         lookup().on('data', function(dataRecord:psData[]){
-            let results:engineListData = {'id':[], 'partition':[], 'nameUUID':[], 'status':[]};
+            let results:EngineListData = {'id':[], 'partition':[], 'nameUUID':[], 'status':[]};
 
             for (let processData of dataRecord) {
                 let key:keyof psData;
@@ -71,7 +64,7 @@ export class nixLikeEngine implements engineLib.engineInterface {
                     if (bHit) break;
                     let possibleValue:string[]|undefined = processData[key];
                     if (possibleValue){
-                        for (let value of possibleValue) {
+                        for (let value of possibleValue){
                             if (regex.test(value)) {
                                 logger.silly(`${value} matches batch regexp at psAux field ${key}`);
                                 let uuid = path.basename(value).replace(".batch", "");
@@ -115,8 +108,8 @@ export class nixLikeEngine implements engineLib.engineInterface {
     }
 
 
-    kill(jobList:engineLib.jobObject[]) {
-        return new events.EventEmitter();
+    kill(jobList:Job[]) {
+        return new EventEmitter();
     }
     testCommand(){
         return 'sleep 10; echo "this is a dummy command"';

@@ -5,13 +5,13 @@ import { format as uFormat} from 'util';
 import { logger } from '../logger';
 const isStream = require('is-stream');
 import { stat as fsStat, lstatSync, createReadStream, createWriteStream } from 'fs';
-const path = require("path");
-import {createHash} from 'crypto';
+import { basename } from  'path';
+import { createHash } from 'crypto';
 
 export class JobInputs extends EventEmitter {
-    streams:Record<string, Readable> = {}
-    paths:Record<string, string> = {}
-    hashes:Record<string, string> = {}
+    streams:Record<string, Readable> = {}
+    paths:Record<string, string>     = {}
+    hashes:Record<string, string>    = {}
 
     hashable:boolean=false;
 
@@ -30,7 +30,7 @@ export class JobInputs extends EventEmitter {
         
         let buffer:any = {};
         // Coherce array in litteral, autogenerate keys
-        if (data.constructor === Array) {
+        if (data.constructor === Array){
             safeNameInput = false;
             let a = <Array<any>>data;
             for (let e of a.entries())
@@ -52,7 +52,7 @@ export class JobInputs extends EventEmitter {
                     //if (!safeNameInput) throw('file naming is unsafe');
                     let datum:string = <string>buffer[key];
                     lstatSync(datum).isFile();
-                    let k = path.basename(datum).replace(/\.[^/.]+$/, ""); 
+                    let k = basename(datum).replace(/\.[^/.]+$/, ""); 
                     k = key; // GL Aug2018, HOTFIX from taskobject, maybe will break JM -- MS side let'see
                     this.streams[k] = createReadStream(datum);
                     logger.debug(`${buffer[key]} is a file, stream assigned to ${k}`);
@@ -60,7 +60,7 @@ export class JobInputs extends EventEmitter {
                 } catch(e) {
                     logger.warn(`Provided input named ${key} is not a file, assuming a string`);                    
                   // Handle error
-                    if(e.code == 'ENOENT'){
+                    if((e as any).code == 'ENOENT'){
                     //no such file or directory
                     //do something
                     } else {
@@ -101,7 +101,7 @@ export class JobInputs extends EventEmitter {
         }
         return this.hashes;
     }
-    write(location:string):jobInputs{
+    write(location:string):JobInputs{
 
         let self = this;
         let inputs:any[] = [];

@@ -2,12 +2,9 @@ import { EventEmitter } from "events";
 import { Socket } from "socket.io-client";
 import { JobInputs } from '../../../job/inputs';
 import { Readable } from 'stream';
-import { logger } from '../../../logger';
 import uuidv4 = require('uuid/v4');
-import { InputDataSocket} from '../../../shared/types/base';
-export type ServerStatus = 'busy' | 'available' 
-import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, isReadableOrString} from '../base';
-import {JobOptBase} from './jobopt_model';
+import { JobOptBase } from './jobopt_model';
+import { format as uFormat } from 'util';
 
 /*
 export abstract class JobBase extends EventEmitter {
@@ -28,7 +25,7 @@ export abstract class JobBase extends EventEmitter {
 
 */
 
-/* Mother class for Job and JobOpt */
+/* Mother class for Job  and JobProxy */
 export class JobBase extends EventEmitter implements JobOptBase{
     id : string;
     script? :string|Readable;

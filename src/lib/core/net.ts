@@ -1,7 +1,8 @@
-import net = require('net');
-import {EventEmitter} from 'events';
-import {logger} from './logger.js';
-import liveMemory = require('./lib/pool.js');
+import * as net  from 'net';
+import { EventEmitter } from 'events';
+import { logger } from '../../logger';
+
+import * as liveMemory from './pool'
 
 const eventEmitterSocket = new EventEmitter();
 

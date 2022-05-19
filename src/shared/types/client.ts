@@ -1,39 +1,24 @@
-export { JobOptBase as JobOptProxy } from './common' 
-import { JobOptBase as JobOptProxy, JobBase } from './common' 
-import { jobOptBaseFactory as baseFactory} from './common';
-import { EventEmitter} from 'events';
+export { JobOptBase as JobOptProxy } from './common/jobopt_model' 
+import { JobOptBase as JobOptProxy, jobOptBaseFactory as jobOptBaseFactory } from './common/jobopt_model' 
+import { JobBase } from './common/job_model';
+
 import { Readable } from 'stream';
+
+const isStream = require('is-stream');
+
+/*
+import { EventEmitter} from 'events';
 import { JobInputs } from '../../job/inputs';
 import { Job } from '../../job';
-
 import { logger } from '../../logger';
 import { Socket } from 'socket.io-client';
 import { format as uFormat } from 'util';
-const isStream = require('is-stream');
 import { socketPull } from '../../comLayer/serverShell';
-
-/*
-    type guard for data container send from the consumer microservice to the JM.
-    aka "newJobSocket" event
 */
-export function isJobOptFromClientToServer(data: any): data is JobOptProxy {
 
-    if (!data.hasOwnProperty('script') && !data.hasOwnProperty('inputs')) return false;
-    if (!isStream(data.script)){    
-        return false;
-    }
-    for (let k in data.inputs){
-        if ( !isStream(data.inputs[k]) ){
-            
-            return false;
-        }
-    }
-
-    return true;
-}
 
 export function JobOptClientFactory(opt:any):JobOptProxy {
-    const jobOptProxy:JobOptProxy = baseFactory(opt);
+    const jobOptProxy:JobOptProxy = jobOptBaseFactory(opt);
     // We chack for mandatory set of key
 
     if(jobOptProxy.script && jobOptProxy.cmd)

@@ -3,23 +3,23 @@ import uuidv4 = require('uuid/v4');
 import { EventEmitter } from 'events';
 import {logger} from './logger.js';
 import { Job, melting }  from './job';
-import { isJobOptProxy } from './shared/types/client';
+import { isJobOptFromClientToServer as isJobOptProxy } from './lib/socket-management/validators';
 import {JobSerial } from './shared/types/server';
 import { getEngine, EngineInterface } from './lib/engine'; 
 //import jmServer = require('./nativeJS/job-manager-server.js');
 //import *  as jmServer from 'comLayer/serverShell';// = require('./nativeJS/job-manager-server.js');
 
 import { SocketRegistry, bouncer, granted, startSocketServer, openBar } from './comLayer/serverShell';
-import * as liveMemory from './lib/pool.js';
-import {open as openSocket} from "./coreSocket";
-import {isSpecs, jobManagerSpecs} from "./coreTypes";
+import * as liveMemory from './lib/core/pool.js';
+import {open as openSocket} from "./lib/core/net";
+import {isSpecs, jobManagerSpecs} from "./shared/types/server";
 
-import {wardenKick, jobWarden, setWarden } from './warden';
+import {wardenKick, setWarden } from './lib/core/warden';
 import {coherceIntoJobTemplate, pprintJobTemplate} from './job/template';
-import { MS_lookup, test as whTest, setParameters as whSetConnect, storeJob } from './warehouseWrapper';
-import {create as createCache} from "./cache";
+import { MS_lookup, test as whTest, setParameters as whSetConnect, storeJob } from './lib/warehouse';
+import {create as createCache} from "./lib/core/cache";
 
-export {engineSpecs} from './lib/engine';
+//export {EngineSpecs} from './lib/engine';
 
 
 let engine:EngineInterface; // to type with Engine contract function signature

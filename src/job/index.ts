@@ -16,6 +16,7 @@ import { EngineInterface, getEngine } from '../lib/engine';
 import { JobSerial } from '../shared/types/server'
 import { Readable } from 'stream';
 import { JobBase } from '../shared/types/common/job_model';
+import { socketPull } from '../comLayer/serverShell';
 
 /* The jobObject behaves like an emitter
  * Emitter exposes following event:
@@ -346,7 +347,7 @@ export class Job extends JobBase implements JobOpt  {
     // WARNING wont work with streams
     jEmit(eName:string|symbol, ...args: any[]):boolean {
         logger.silly(`jEmit(this) ${String(eName)}`);
-        this.hasShimmerings.forEach((shimJob:JobProxy) => {
+        this.hasShimmerings.forEach((shimJob:Job) => {
             shimJob.jEmit(eName, shimJob);
         }); 
 
@@ -396,7 +397,7 @@ export class Job extends JobBase implements JobOpt  {
                 return JSON.stringify(e); // Primitive OR s
             });
             logger.silly(`socket emiting event ${String(eName)}`);    
-            this.socket.emit(eName, ..._args);
+            this.socket.emit(eName as string, ..._args);
         }
         return true;
     }

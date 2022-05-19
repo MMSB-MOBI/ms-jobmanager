@@ -1,11 +1,11 @@
 /*
     Managing the jobManager Core jobs Object References
 */
-import deepEqual = require('deep-equal');
-import { jobObject, jobSerialInterface } from '../job';
-import cType = require('../commonTypes.js');
+const deepEqual = require('deep-equal');
+import { Job } from '../../job';
+import { JobSerial } from '../../shared/types/server';
 //import {lookup as liveLookup, add as liveStore, remove as liveDel} from "./warehouse.js";
-import {logger} from '../logger.js';
+import {logger} from '../../logger';
 import {format as uFormat} from 'util';
 
 export type jobStatus = "CREATED" | "SUBMITTED" | "COMPLETED"| "START"|"FINISHED";
@@ -22,7 +22,7 @@ export function isShimOrStatus(type: jobShimmering|jobStatus): type is shimOrSta
 
 
 interface jobWrapper {
-    'obj': jobObject,
+    'obj': Job,
     'status': jobStatus,
     'nCycle': number,
     'sType' : jobShimmering|undefined
@@ -31,7 +31,7 @@ interface jobWrapper {
 
 let jobsArray : {[s:string] : jobWrapper } = {};
 
-export type ISearchKey = { jid: string } | { jobSerial: jobSerialInterface } | { jobObject:jobObject };
+export type ISearchKey = { jid: string } | { jobSerial: JobSerial } | { jobObject:Job };
 
 
 export function size(opt?:string):number{
@@ -61,7 +61,7 @@ export function removeJob(query:ISearchKey):boolean {
         logger.error(`Unable to removeJob based on following query ${uFormat(query)}`);
         return false;
     }
-    let jobToDel:jobObject|undefined = getJob(query);
+    let jobToDel:Job|undefined = getJob(query);
     if (!jobToDel) {
         logger.debug(`No job in memory for job selector ${query}`);
         return false;
@@ -76,7 +76,7 @@ export function removeJob(query:ISearchKey):boolean {
     return true;
 }
 
-export function addJob(newJob:jobObject){
+export function addJob(newJob:Job){
     let nWrapper:jobWrapper = {
         'obj': newJob,
         'status': 'CREATED',
@@ -128,7 +128,7 @@ ${asString()}`);
     return undefined;
 }
 
-export function getJob(query:ISearchKey):jobObject|undefined {
+export function getJob(query:ISearchKey):Job|undefined {
     let jobWrapper = getJobWrapper(query);
     if(jobWrapper) 
         return jobWrapper.obj;
@@ -151,7 +151,7 @@ export function getJobStatus(query:ISearchKey):jobStatus|undefined {
 
 export function asString():string {
     return Object.keys(jobsArray).map((jid:string)=>{
-        let j:jobObject = <jobObject>getJob({'jid' : jid});
+        let j:Job = <Job>getJob({'jid' : jid});
         return `${uFormat(j.toJSON())}`;
     }).join('\n');
 }
@@ -246,7 +246,7 @@ function _intersect(a:any[], b:any[]):any[] {
 
 type deepKey = 'exportVar'| 'modules'| 'inputHash';
 type shallowKey = 'tagTask'| 'scriptHash';
-function isConstraintsOk(item:jobSerialInterface, query:jobSerialInterface): boolean {
+function isConstraintsOk(item:JobSerial, query:JobSerial): boolean {
     // Deep check // escaping module values check
     for ( let field of ['exportVar', 'inputHash', 'modules']) {
         let k = <deepKey>field;
@@ -256,8 +256,8 @@ function isConstraintsOk(item:jobSerialInterface, query:jobSerialInterface): bo
             if (!item[k]) return false;
             if(field === 'module') continue;
 
-            let queryIter = <cType.stringMap>query[k];
-            let itemIter = <cType.stringMap>item[k];
+            let queryIter =<Record<string, string>>query[k];
+            let itemIter = <Record<string, string>>item[k];
 
             if ( Object.keys(queryIter).length !=  Object.keys(itemIter).length) return false;
             if (_intersect( Object.keys(queryIter), Object.keys(itemIter) ).length !=  Object.keys(queryIter).length) return false;
@@ -290,8 +290,8 @@ function isConstraintsOk(item:jobSerialInterface, query:jobSerialInterface): bo
 }
 
 /* --  a function that look for jobs satisfying a constraints in a list --*/
-export function lookup(jobAsked:jobObject):jobObject[]|undefined {
-    let hits:jobObject[] = []
+export function lookup(jobAsked:Job):Job[]|undefined {
+    let hits:Job[] = []
     let query = jobAsked.getSerialIdentity();
     for (let job of sourceJobIter()) {
         let item = job.getSerialIdentity();
