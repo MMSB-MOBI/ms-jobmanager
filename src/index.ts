@@ -4,7 +4,8 @@ import { EventEmitter } from 'events';
 import {logger} from './logger.js';
 import { Job, melting }  from './job';
 import { isJobOptFromClientToServer as isJobOptProxy } from './lib/socket-management/validators';
-import {JobSerial } from './shared/types/server';
+import { JobOptProxy } from './shared/types/client';
+import { JobOpt } from './shared/types/server';
 import { getEngine, EngineInterface } from './lib/engine'; 
 //import jmServer = require('./nativeJS/job-manager-server.js');
 //import *  as jmServer from 'comLayer/serverShell';// = require('./nativeJS/job-manager-server.js');
@@ -12,13 +13,13 @@ import { getEngine, EngineInterface } from './lib/engine';
 import { SocketRegistry, bouncer, granted, startSocketServer, openBar } from './comLayer/serverShell';
 import * as liveMemory from './lib/core/pool.js';
 import {open as openSocket} from "./lib/core/net";
-import {isSpecs, jobManagerSpecs} from "./shared/types/server";
-
+import {isSpecs, JobManagerSpecs, JobSerial, netStreamInputs} from "./shared/types/server";
+import { uuid } from './shared/types/base';
 import {wardenKick, setWarden } from './lib/core/warden';
-import {coherceIntoJobTemplate, pprintJobTemplate} from './job/template';
+import {transformProxyToJobOpt, pprintJobTemplate} from './job/template';
 import { MS_lookup, test as whTest, setParameters as whSetConnect, storeJob } from './lib/warehouse';
 import {create as createCache} from "./lib/core/cache";
-
+import { Socket } from 'socket.io';
 //export {EngineSpecs} from './lib/engine';
 
 
@@ -64,7 +65,7 @@ function _pulse() {
 
 //CH 02/12/19
 // Maybe use promess instead of emit("ready"), emit("error")
-export function start(opt:jobManagerSpecs):EventEmitter {
+export function start(opt:JobManagerSpecs):EventEmitter {
     logger.debug(`${uFormat(opt)}`);
 
     if (isStarted) {
@@ -130,57 +131,29 @@ export function start(opt:jobManagerSpecs):EventEmitter {
 }
 
 // New job packet arrived on MS socket, 1st arg is streamMap, 2nd the socket
-function pushMS(data:any, MS_socket:any) {
-    logger.debug(`newJob Packet arrived w/ ${uFormat(data)}`);
+async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, MS_socket:Socket):Promise<void> {
+    logger.debug(`newJob Packet arrived w/ ${uFormat(jobOptProxy)}`);
     logger.silly(` Memory size vs nWorker :: ${liveMemory.size()} <<>> ${nWorker}`);
     if (liveMemory.size("notBound") >= nWorker) {
         logger.debug("must refuse packet, max pool size reached");
-        bouncer(data, MS_socket);
+        bouncer(jobID, MS_socket);
         return;
         // No early exit yet
     }
     
-    granted(data, MS_socket).then((_data:any)=> {        
-
-        let jobProfile = _data.jobProfile;
-        _data.fromConsumerMS = true;
-
-        if(isJobOptProxy(_data)) {
-            logger.debug(`jobOpt successfully decoded`);
-        } else { 
-            logger.error("Following data is not a valid jobOptProxy");
-            logger.error(uFormat(_data));
-        }
-        const _ = push(jobProfile, _data);
-    });    
+    const remoteData:netStreamInputs = await granted(jobOptProxy, jobID, MS_socket); 
+    const jobOpt = transformProxyToJobOpt(jobID, jobOptProxy, remoteData, 
+        { engine, emulator, TCPip, TCPport, cache: cacheDir as string,
+            fromConsumerMS:true
+        })
+    const _ = _push(jobOpt);
 }
 
-/* weak typing of the jobOpt  parameter */
-export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, namespace?: string) : Job {
-    logger.debug(`Following litteral was pushed \n ${uInspect(jobOpt, false, 0)}`);
 
-    const jobID = jobOpt.id || uuidv4();
-    const workDir:string = cacheDir + '/' + jobID;
+function _push(jobOpt:JobOpt):Job {
+    const newJob = new Job(jobOpt);
 
-    const jobTemplate = coherceIntoJobTemplate(jobProfileString, jobOpt, workDir, { engine, emulator, TCPip, TCPport });
-  
-    logger.debug(`Following jobTemplate was successfully buildt \n ${pprintJobTemplate(jobTemplate)}`);
-    const newJob = new Job(jobTemplate, jobID);
-
-    // All engine parameters are set at this stage, working on folder creations should be safe
-    // Check for intermediary folders in workdirpath
-    // rootCache /job.iCache??""/ namespace ??"" / jobID
-    if (namespace || newJob.engine.iCache) {       
-        newJob.workDir = cacheDir ? `${cacheDir}/` : "";
-        newJob.workDir += newJob.engine.iCache ? `${newJob.engine.iCache}/` : ""; 
-        newJob.workDir += namespace ? `${namespace}/` : ""; 
-        newJob.workDir += jobID;
-        logger.debug(`Redefined job workDir ${newJob.workDir}`);
-    }
-
-    if('fromConsumerMS' in jobOpt)
-        newJob.fromConsumerMS = jobOpt.fromConsumerMS;
-       
+   
                   // 3 outcomes
           // newJob.launch // genuine start
           // newJob.resurrect // load from wareHouse a complete job
@@ -245,11 +218,24 @@ export function push(jobProfileString : string, jobOpt:any /*jobOptInterface*/, 
                 });
             });
     });
+    return newJob;
+}
+/* USED ONLY IN SINGLERUNTIME JOBMANAGER --> MAYBE DEPREDCATED ?
+function push(jobProfileString : string, jobOpt:any , namespace?: string): Job {
+    logger.debug(`Following litteral was pushed \n ${uInspect(jobOpt, false, 0)}`);
+
+    const jobID = jobOpt.id || uuidv4();
+    const workDir:string = cacheDir + '/' + jobID;
+
+    const jobTemplate = coherceIntoJobTemplate(jobProfileString, jobOpt, workDir, { engine, emulator, TCPip, TCPport });
+  
+    logger.debug(`Following jobTemplate was successfully buildt \n ${pprintJobTemplate(jobTemplate)}`);
+    
     exhaustBool = true;
 
     return newJob;
 }
-
+*/
 /*
     handling job termination.
     Eventualluy resubmit job if error found
@@ -307,7 +293,7 @@ function _storeAndEmit(jid:string, status?:string) {
     }
 }
 
-function pprint(opt:jobManagerSpecs) {
+function pprint(opt:JobManagerSpecs) {
     return `-==JobManager successfully started==-
     scheduler_id : ${scheduler_id}
     engine type : ${engine.specs}

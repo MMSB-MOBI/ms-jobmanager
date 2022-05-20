@@ -3,16 +3,17 @@ import { Server as SocketIOServer, Socket } from 'socket.io';
 
 import * as util from 'util';
 import { v4 as uuidv4 } from 'uuid';
-import {ServerStatus} from '../shared/types/server';
+import { ServerStatus } from '../shared/types/common';
 import { ReadStream, WriteStream } from 'fs';
-
+import { uuid } from '../shared/types/base';
+import { JobOptProxy } from '../shared/types/client';
 import { Job } from '../job'
 const ss = require('socket.io-stream')
 
 import { Readable } from 'stream';
 const my_logger = require('../logger.js');
 const logger = my_logger.logger;
-
+import { netStreamInputs } from '../shared/types/server';
 import { ClientToServerEvents, ServerToClientEvents,/* InterServerEvents, SocketData*/ } from '../lib/socket-management/interfaces';
 /*let io:SocketIOServer;
 let socketRegistry:Record<string, Socket> = {};
@@ -34,11 +35,11 @@ export class SocketRegistry extends EventEmitter {
             this.emit('connection'); // for login purposes
             this.emit('clientSocketConnection', socket); // concrete socket
             const self = this;
-            socket.on('newJobSocket', (data) => {
-                logger.debug(`========\n=============\nnewJobSocket received container:\n${util.format(data)}`);
+            socket.on('newJobSocket', (jobID:uuid, jobOptProxy:JobOptProxy) => {
+                logger.debug(`========\n=============\nnewJobSocket received container:\n${util.format(jobOptProxy)}`);
                 // Emitting the corresponding event/Symbols for socket streaming
                 //logger.debug(`========\n=============\nnewJobSocket emmitting container:\n${util.format(newData)}`);
-                self.emit('newJobSocket', data, socket);
+                self.emit('newJobSocket', jobID, jobOptProxy, socket);
             });
             socket.on('disconnect', function () {
                 self.remove(uuid);
@@ -144,41 +145,44 @@ export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Pro
 /*
  For now we dont do much just boreadcasting were overloaded
 */
-export function bouncer(data:any, socket:Socket) {
-    logger.debug(`Bouncing ${data.id}`);
+export function bouncer(jobID:uuid, socket:Socket) {
+    logger.debug(`Bouncing ${jobID}`);
     socketRegistry.broadcast('busy');
-    socket.emit('bounced', { jobID: data.id });
+    socket.emit('bounced', jobID);
 }
 
 // We build streams only at granted
-export function granted(data:any, socket:Socket) {
+// We souhld type ss.createReadStream
+export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket):Promise<netStreamInputs> {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
-            logger.debug(`i grant access to ${util.format(data.id)}`);
+            logger.debug(`i grant access to ${jobID}`);
             socketRegistry.broadcast('available');
-            let socketNamespace = data.id;
-            const newData:Record<string, any> = {
+            const socketNamespace = jobID;
+            const remoteData:netStreamInputs = {
                 script: ss.createStream(),
                 inputs: {}
             };
-            for (let inputSymbol in data.inputs) {
+            for (let inputSymbol in jobOptProxy.inputs) {
                 //let filePath = data.inputs[inputSymbol];
                 //logger.debug(`-->${filePath}`);
-                newData.inputs[inputSymbol] = ss.createStream();
+                remoteData.inputs[inputSymbol] = ss.createStream();
                 logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
-                ss(socket).emit(socketNamespace + "/" + inputSymbol, newData.inputs[inputSymbol]);
+                ss(socket).emit(`${socketNamespace}/${inputSymbol}`, remoteData.inputs[inputSymbol]);
                 //logger.warn('IeDump from' +  socketNamespace + "/" + inputSymbol);
                 //newData.inputs[inputSymbol].pipe(process.stdout)
             }
-            ss(socket).emit(socketNamespace + "/script", newData.script);
+            ss(socket).emit(socketNamespace + "/script", remoteData.script);
+           
             //logger.error(`TOTOT2\n${util.format(newData)}`);
-            for (let k in data) {
+           /* for (let k in data) {
                 if (k !== 'inputs' && k !== 'script')
                     newData[k] = data[k];
             }
             newData.socket = socket;
-            socket.emit('granted', { jobID: data.id });
-            resolve(newData);
+            */
+            socket.emit('granted', jobID); // to client TO DO type cahnge and need hinting
+            resolve(remoteData);
         }, 250);
     });
 }

@@ -41,7 +41,7 @@ export class JobBase extends EventEmitter implements JobOptBase{
     constructor(jobOpt:JobOptBase, uuid?:string){ // Quick and dirty typing
         super();
         this.id = uuid ? uuid : uuidv4();
-      
+        console.log("===>" + this.id);
         if ('modules' in jobOpt)
             this.modules = jobOpt.modules;
         if ('jobProfile' in jobOpt)       

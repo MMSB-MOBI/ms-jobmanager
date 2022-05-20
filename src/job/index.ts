@@ -63,28 +63,20 @@ export function melting(previousJobs:Job, newJob:Job) {
 export class Job extends JobBase implements JobOpt  {
    
     inputSymbols : any = {};
-    //outputFiles :string[]  = [];
     ERR_jokers :number = 3; //  Number of time a job is allowed to be resubmitted if its stderr is non null
     MIA_jokers :number = 3; //  Number of time
-    //inputDir : string;
-    
     engine : EngineInterface;
 
     fromConsumerMS : boolean = false;
-
-    port :number; // JobManager MicroService Coordinates
-    adress :string; // ""
+    script:Readable;
     workDir :string;
     execUser?: string; 
-
-// Opt, set by object setter
-    
-    emulated? :boolean = false;
-   
+    internalIP:string;
+    internalPort:number;
     cwd? :string;
     cwdClone? :boolean = false;
     ttl? :number;
- 
+    emulated:boolean=false;
     scriptFilePath?:string;
     fileOut? :string;
     fileErr? : string;
@@ -94,13 +86,12 @@ export class Job extends JobBase implements JobOpt  {
     hasShimmerings:Job[] = []  // Can only be Job instances not JobProxy
 
     constructor( jobOpt:JobOpt, uuid? :string ){
-        super(jobOpt, uuid);
-        
-        this.port = jobOpt.port;
-        this.adress = jobOpt.adress;
+        super(jobOpt, uuid);       
+        this.internalPort = jobOpt.internalPort;
+        this.internalIP = jobOpt.internalIP;
         this.workDir = jobOpt.workDir;
         //logger.info() 
-
+        this.script = jobOpt.script;
         //const completeProfile = jobOpt.jobProfile === "default" ? undefined : getSlurmProfile(jobOpt.jobProfile)
         //this.execUser = completeProfile ? completeProfile.execUser : undefined
       
@@ -188,7 +179,7 @@ export class Job extends JobBase implements JobOpt  {
     // Rewrite This w/ jobInputObject calls
     // DANGER script HASH not possible on string > 250MB
     getSerialIdentity ():JobSerial {
-        let serial:JobSerial = {
+        const serial:JobSerial = {
             workDir : this.workDir,
             id : this.id,
             cmd : this.cmd,
@@ -218,7 +209,7 @@ export class Job extends JobBase implements JobOpt  {
             this.jEmit("inputSet");
             return;
         }
-        let self = this;
+        
         this.inputs.write(`${this.workDir}/input`)
         .on('OK', ()=> {
             let self = this;
@@ -414,13 +405,14 @@ function jobIdentityFileWriter(job : Job) :void {
 function batchDumper(job: Job) {
     let emitter : EventEmitter = new EventEmitter();
     let batchContentString  : string = "#!/bin/bash\n";
-    let adress : string = job.emulated ? 'localhost' : job.adress;
-    var trailer = 'echo "JOB_STATUS ' + job.id + ' FINISHED"  | nc -w 2 ' + adress + ' ' + job.port + " > /dev/null\n";
+    const address : string = job.emulated ? 'localhost' : job.internalIP;
+    const port = job.internalPort
+    var trailer = 'echo "JOB_STATUS ' + job.id + ' FINISHED"  | nc -w 2 ' + address + ' ' + port + " > /dev/null\n";
 
     let engineHeader = job.engine.generateHeader(job.id, job.jobProfile, job.workDir);
     batchContentString += engineHeader; /// ENGINE SPECIFIC PREPROCESSOR LINES
 
-    batchContentString += 'echo "JOB_STATUS ' + job.id + ' START"  | nc -w 2 ' + adress + ' ' + job.port + " > /dev/null\n"
+    batchContentString += 'echo "JOB_STATUS ' + job.id + ' START"  | nc -w 2 ' + address + ' ' + port + " > /dev/null\n"
 
     if (job.exportVar) {
         for (var key in job.exportVar) {

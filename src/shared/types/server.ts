@@ -1,28 +1,65 @@
 import { JobOptBase } from './common/jobopt_model';
 import { EngineInterface, EngineSpecs, BinariesSpec, isBinariesSpec, isEngineSpec } from '../../lib/engine';
-
+import { Readable } from 'stream';
 
 import path = require('path');
 import {logger} from '../../logger';
 import util = require('util');
+import { uuid } from './base';
 
 export type ServerStatus = 'busy' | 'available' 
 
+export const JobOptKeys = [ 'exportVar', 'modules', 'script', 'cmd', 'inputs', 'tagTask', 'ttl', 'socket', 'sysSettingsKey', 'jobProfile'];
 
 export interface JobOpt extends JobOptBase{
-    engine : EngineInterface, // it is added by the jm.push method
-    
-    // To allow mutliple slurm user 
-    sysSettingsKey?:string,
-   
-    port : number, // JobManager MicroService Coordinates
-    adress : string, // ""
-    workDir : string,
-    emulated? : boolean,
+    id: uuid,
+    engine : EngineInterface, 
+    emulated: boolean,   
+    internalIP:string,
+    internalPort:number,
+    workDir : string,    
     cwd? : string,
     cwdClone? : boolean,
     ttl? : number
+    sysSettingsKey?:string,
+    fromConsumerMS : boolean
+    inputs : Record<string, Readable>,
+    script : Readable
 }
+
+export interface netStreamInputs {
+    script: Readable,
+    inputs: Record<string, Readable>
+}
+
+/*
+
+        logger.debug(`i grant access to ${jobID}`);
+            
+            const socketNamespace = jobID;
+            const newData:Record<string, any> = {
+                script: ss.createStream(),
+                inputs: {}
+            };
+            for (let inputSymbol in jobOptProxy.inputs) {
+                //let filePath = data.inputs[inputSymbol];
+                //logger.debug(`-->${filePath}`);
+                newData.inputs[inputSymbol] = ss.createStream();
+                logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
+                ss(socket).emit(`${socketNamespace}/${inputSymbol}`, newData.inputs[inputSymbol]);
+                //logger.warn('IeDump from' +  socketNamespace + "/" + inputSymbol);
+                //newData.inputs[inputSymbol].pipe(process.stdout)
+            }
+            ss(socket).emit(socketNamespace + "/script", newData.script);
+            //logger.error(`TOTOT2\n${util.format(newData)}`);
+            for (let k in data) {
+                if (k !== 'inputs' && k !== 'script')
+                    newData[k] = data[k];
+            }
+            newData.socket = socket;
+*/
+
+
 
 export interface JobSerial extends JobOptBase{
     id:string,
@@ -32,7 +69,7 @@ export interface JobSerial extends JobOptBase{
     cmd?:string
 }
 
-export interface jobManagerSpecs {
+export interface JobManagerSpecs {
     cacheDir : string,
     tcp : string,
     port : number,
@@ -47,7 +84,7 @@ export interface jobManagerSpecs {
     engineBinaries?: BinariesSpec
 }
 
-export function isSpecs(opt: any): opt is jobManagerSpecs {
+export function isSpecs(opt: any): opt is JobManagerSpecs {
     if(!path.isAbsolute(opt.cacheDir)) {
         logger.error('cacheDir parameter must be an absolute path');
         return false;

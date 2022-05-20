@@ -1,46 +1,62 @@
-import { JobOpt } from '../shared/types/server';
+import { JobOpt, JobOptKeys  } from '../shared/types/server';
 import { EngineInterface } from '../lib/engine' ;
 import {format as uFormat} from 'util';
+import { logger } from '../logger';
+import { JobOptProxy } from '../shared/types/client';
+import { uuid } from '../shared/types/base';
+import { netStreamInputs } from '../shared/types/server';
 
-interface jtSpecs {
+
+interface JobOptSpecs {
     engine : EngineInterface,
     emulator: boolean,
-    TCPip : string,
-    TCPport : number
+    internalIP : string,
+    internalPport : number,
+    cache:string,
+    fromConsumerMS:boolean
 }
+// Test for jobProfile
 
-export function coherceIntoJobTemplate(jobProfileString:string, _jt:any, workDir:string, jtSpec:jtSpecs):JobOpt {
+export function transformProxyToJobOpt( jobID:uuid, 
+                                        jopx:JobOptProxy,
+                                        remoteData:netStreamInputs,
+                                        joSpec:JobOptSpecs
+                                        ):JobOpt {
 
-    let jt:JobOpt=  {
+    const { engine, emulator, internalIP, internalPport, cache, fromConsumerMS } = joSpec;
+    // All engine parameters are set at this stage, working on folder creations should be safe
+    // Check for intermediary folders in workdirpath
+    // rootCache /job.iCache??""/ namespace ??"" / jobID
+   
+    const jo:Partial<JobOpt> =  {
         // "engineHeader": engine.generateHeader(jobID, jobProfileString, workDir),
-     "engine" : jtSpec.engine,
-     "workDir": workDir,
-     "emulated": jtSpec.emulator,
-     "adress": jtSpec.TCPip,
-     "port": jtSpec.TCPport,
-     "jobProfile" : jobProfileString ? jobProfileString : "default"
-    };
+     "engine" : engine,
+     "emulated": emulator,
+     "adress": TCPip,
+     "port" : TCPport,
+     "jobProfile" : jopx.jobProfile ? jopx.jobProfile : "default",
+     "fromConsumerMS" : fromConsumerMS
+     };
 
-    if('exportVar' in _jt)
-        jt.exportVar =  _jt.exportVar;
-    if('modules' in _jt )
-        jt.modules = _jt.modules;
-    if ('script' in _jt)
-        jt.script = _jt.script;
-    if ('cmd' in _jt)
-        jt.cmd = _jt.cmd;
-    if ('inputs' in _jt)
-        jt.inputs = _jt.inputs;
-    if ('tagTask' in _jt)
-        jt.tagTask = _jt.tagTask;
-    if ('ttl' in _jt)
-        jt.ttl = _jt.ttl;
-    if ('socket' in _jt)
-        jt.socket = _jt.socket;
-    if ('sysSettingsKey' in _jt)
-        jt.sysSettingsKey = _jt.sysSettingsKey;
+    for (let jok of JobOptKeys.filter((k:string) => k != 'inputs')) {
+        //@ts-ignore
+        jo[jok] = jopx[jok];
+    }
+    jo.id = jobID;
 
-    return jt;
+    jo.workDir = `${cache}/${jobID}`;
+    if (jopx.namespace || engine.iCache) {       
+        jo.workDir = cache ? `${cache}/` : "";
+        jo.workDir += engine.iCache ? `${engine.iCache}/` : ""; 
+        jo.workDir += jopx.namespace ? `${jopx.namespace}/` : ""; 
+        jo.workDir += jobID;
+        logger.debug(`Set job workDir to ${jo.workDir}`);
+    }
+
+    jo.inputs = remoteData.inputs;  // TO RESUME HERE
+    jo.script = remoteData.script;
+    logger.debug(`Transformed JobOpt is :\n${uFormat(jo)}`)
+    return jo as JobOpt;
 }
 
 export function pprintJobTemplate(jt:JobOpt):string {

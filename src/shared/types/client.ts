@@ -38,7 +38,8 @@ export function JobOptClientFactory(opt:any):JobOptProxy {
 */
 
 export class JobProxy extends JobBase {
-
+   /* TCPip : string,
+    TCPport : number,*/
     stdout?:Readable
     stderr?:Readable
     constructor(jobOpt:JobOptProxy, uuid?:string){

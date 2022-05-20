@@ -14,9 +14,9 @@ let logger = my_logger.logger
 import { ServerStatus } from '../shared/types/common'
 import { JobSerial } from '../shared/types/server'
 import { Writable } from 'stream';
-
+import { uuid } from '../shared/types/base';
 type JobWrapStatus = 'idle' | 'sent' | 'bounced' | 'granted' | 'completed';
-type uuid = string;
+
 interface JobWrap {
     job: JobProxy,
     //data: Object,
@@ -63,9 +63,9 @@ class jobAccumulator extends EventEmitter {
     popQueue():Promise<string> {
        
         //Promise resolution is delegated to the socket listener in bind method
-        let jobWrap = this._getWaitingJob();
-        let self = this;
-        let p = new Promise((resolve, reject) => {
+        const jobWrap = this._getWaitingJob();
+        const self = this;
+        const p = new Promise((resolve, reject) => {
            
             if (!jobWrap) {
                 logger.debug("Queue exhausted");
@@ -102,7 +102,8 @@ class jobAccumulator extends EventEmitter {
                 logger.silly(`EMITTING THIS RESUB ${jobWrap.job.id}\n${util.format(jobWrap.jobOpt)}`);
             }
             jobWrap.status = 'sent';
-            socket.emit('newJobSocket', /*jobWrap.data*/ jobWrap.jobOpt);
+            // I'd prefer socket.emit('newJobSocket', job.id, jobWrap.jobOpt);
+            socket.emit('newJobSocket', jobWrap.job.id, jobWrap.jobOpt);
         });
         return p as Promise<string>;
     }
@@ -188,10 +189,10 @@ class jobAccumulator extends EventEmitter {
             // data = JSON.parse(data);
         });
         let self = this;
-        socket.on('bounced', (d) => {
+        socket.on('bounced', (jobID:uuid) => {
             logger.silly(`Client : socket on bounced`)
-            logger.debug(`Job ${util.format(d)} was bounced !`);
-            self.jobsPromisesReject[d.jobID]({ 'type': 'bouncing', jobID: d.jobID });
+            logger.debug(`Job ${jobID} was bounced !`);
+            self.jobsPromisesReject[jobID]({ 'type': 'bouncing', jobID });
         });
         socket.on('granted', (d) => {
             logger.silly(`Client : socket on granted`)

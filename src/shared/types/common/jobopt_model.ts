@@ -7,12 +7,10 @@ import { InputDataSocket} from '../../../shared/types/base';
 import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, isReadableOrString} from '../base';
 import { Path, isReadableOrPath } from '../base';
 
+export type JobOptInputs = InputDataSocket|string[]|Record<string, Readable> | JobInputs;
 export interface JobOptBase {     
-    id?:string;
-
     cmd? : string,
     exportVar? : Record<string, string|number>    
-    inputs? : InputDataSocket|string[]|JobInputs,
     jobProfile?: string;    
     modules? : string [],    
     namespace? :string,
@@ -21,6 +19,7 @@ export interface JobOptBase {
     sysSettingsKey?:string,
     tagTask? : string,    
     ttl? : number
+    inputs? : JobOptInputs, /* Cover all possible types in inherited interface, should be "abstracted" */
 }
 
 const typeLogError = (varName:string, eType:string, varValue:any):void => {
@@ -31,8 +30,7 @@ const typeLogError = (varName:string, eType:string, varValue:any):void => {
 // Factorization by callback function may cause TS inference pb
 
 export function jobOptBaseFactory(opt:Object):JobOptBase {
-    const jobOptBase:JobOptBase = {
-        id: undefined,
+    const jobOptBase:JobOptBase = {       
         script: undefined,
         cmd: undefined,
         modules: [],
@@ -50,7 +48,7 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
             logger.error(`${key} is not a jobOptAbstract property`);
             continue;
         }
-        if (key == 'id' || key == 'cmd' || key == 'jobProfile' || key == 'tagTask' ||
+        if (key == 'cmd' || key == 'jobProfile' || key == 'tagTask' ||
             key == 'namespace' || key == 'sysSettingsKey'
             ) 
             if (typeof(value) != 'string')
@@ -94,7 +92,7 @@ export function isJobOptBase(data:any): data is JobOptBase {
         return false;
     }
     for (const [key, value] of Object.entries(data)) {
-        if (key == 'id' || key == 'cmd' || key == 'jobProfile' || key == 'tagTask' ||
+        if (key == 'cmd' || key == 'jobProfile' || key == 'tagTask' ||
             key == 'namespace' || key == 'sysSettingsKey'
             ) 
             if (typeof(value) != 'string') {

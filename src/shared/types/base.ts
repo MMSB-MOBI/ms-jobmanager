@@ -10,6 +10,8 @@ import { accessSync, constants } from 'fs';
     Usual basic container type interface and predicates
 */
 
+export type uuid = string;
+
 export interface stringMap { [s: string] : string; }
 export function isStringMap(obj: any): obj is stringMap {
     if(typeof(obj) != 'object') return false;
