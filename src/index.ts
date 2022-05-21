@@ -50,8 +50,8 @@ let isStarted :boolean = false;
 
 let microServiceSocket:SocketRegistry|undefined = undefined;
 
-let TCPip = '127.0.0.1';
-let TCPport = 2222;
+let internalIP = '127.0.0.1';
+let internalPort = 2222;
 
 function _pulse() {
     let c:number = liveMemory.size();
@@ -86,8 +86,8 @@ export function start(opt:JobManagerSpecs):EventEmitter {
     emulator = opt.engineSpec == 'emulate' ? true : false;
 
     // Address, port  of the jobManager MicroService node worker communications
-    TCPip  =   opt.tcp  || TCPip;
-    TCPport  = opt.port || TCPport;
+    internalIP  =   opt.tcp  || internalIP;
+    internalPort  = opt.port || internalPort;
     
     // if a port is provided for microservice we open connection
     if(opt.microServicePort) {
@@ -113,8 +113,8 @@ export function start(opt:JobManagerSpecs):EventEmitter {
     cacheDir = createCache(opt.forceCache, opt.cacheDir, scheduler_id);
     
     // worker socket listener
-    logger.debug('[' + TCPip + '] opening socket at port ' + TCPport);
-    const s = openSocket(TCPport);
+    logger.debug(`[${internalIP}] opening worker socket at port ${internalPort}`);
+    const s = openSocket(internalPort);
     s.on('coreSocketError', (e:any)  => topLevelEmitter.emit('error', e))
     .on('coreSocketListen', () => {
         isStarted = true;
@@ -143,7 +143,7 @@ async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, MS_socket:Socket):Pro
     
     const remoteData:netStreamInputs = await granted(jobOptProxy, jobID, MS_socket); 
     const jobOpt = transformProxyToJobOpt(jobID, jobOptProxy, remoteData, 
-        { engine, emulator, TCPip, TCPport, cache: cacheDir as string,
+        { engine, emulator, internalIP, internalPort, cache: cacheDir as string,
             fromConsumerMS:true
         })
     const _ = _push(jobOpt);
@@ -297,7 +297,7 @@ function pprint(opt:JobManagerSpecs) {
     return `-==JobManager successfully started==-
     scheduler_id : ${scheduler_id}
     engine type : ${engine.specs}
-    internal ip/port : ${TCPip}/${TCPport}
+    internal ip/port : ${internalIP}/${internalPort}
     consumer port : ${opt.microServicePort}
     worker pool size : ${nWorker}
     cache directory : ${cacheDir}

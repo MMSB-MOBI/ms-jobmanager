@@ -6,7 +6,7 @@ import path = require('path');
 import {logger} from '../../logger';
 import util = require('util');
 import { uuid } from './base';
-
+import { JobInputs } from '../../job/inputs';
 export type ServerStatus = 'busy' | 'available' 
 
 export const JobOptKeys = [ 'exportVar', 'modules', 'script', 'cmd', 'inputs', 'tagTask', 'ttl', 'socket', 'sysSettingsKey', 'jobProfile'];
@@ -23,7 +23,7 @@ export interface JobOpt extends JobOptBase{
     ttl? : number
     sysSettingsKey?:string,
     fromConsumerMS : boolean
-    inputs : Record<string, Readable>,
+    inputs : Record<string, Readable>|JobInputs,
     script : Readable
 }
 

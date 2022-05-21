@@ -11,7 +11,7 @@ interface JobOptSpecs {
     engine : EngineInterface,
     emulator: boolean,
     internalIP : string,
-    internalPport : number,
+    internalPort : number,
     cache:string,
     fromConsumerMS:boolean
 }
@@ -23,7 +23,7 @@ export function transformProxyToJobOpt( jobID:uuid,
                                         joSpec:JobOptSpecs
                                         ):JobOpt {
 
-    const { engine, emulator, internalIP, internalPport, cache, fromConsumerMS } = joSpec;
+    const { engine, emulator, internalIP, internalPort, cache, fromConsumerMS } = joSpec;
     // All engine parameters are set at this stage, working on folder creations should be safe
     // Check for intermediary folders in workdirpath
     // rootCache /job.iCache??""/ namespace ??"" / jobID
@@ -32,8 +32,8 @@ export function transformProxyToJobOpt( jobID:uuid,
         // "engineHeader": engine.generateHeader(jobID, jobProfileString, workDir),
      "engine" : engine,
      "emulated": emulator,
-     "adress": TCPip,
-     "port" : TCPport,
+     "internalIP": internalIP,
+     "internalPort" : internalPort,
      "jobProfile" : jopx.jobProfile ? jopx.jobProfile : "default",
      "fromConsumerMS" : fromConsumerMS
      };
@@ -62,7 +62,7 @@ export function transformProxyToJobOpt( jobID:uuid,
 export function pprintJobTemplate(jt:JobOpt):string {
 
     let asString = `jobOptInterface\n\tengine:${jt.engine}}\n\tworkDir:${jt.workDir}\n\temulated:${jt.emulated}`;
-    asString    += `\n\tadress/port:${jt.adress}${jt.port}\n\tjobProfile:${jt.jobProfile}`;
+    asString    += `\n\tadress/port:${jt.internalIP}${jt.internalPort}\n\tjobProfile:${jt.jobProfile}`;
     asString    += jt.modules        ? `\n\tmodules:${jt.modules}` : '';
     asString    += jt.script         ? `\n\texportVar:${jt.script}` : '';
     asString    += jt.cmd            ? `\n\tcmd:${jt.cmd}` : '';
