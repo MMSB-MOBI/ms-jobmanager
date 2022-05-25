@@ -5,7 +5,7 @@ import { logger } from '../logger';
 import { JobOptProxy } from '../shared/types/client';
 import { uuid } from '../shared/types/base';
 import { netStreamInputs } from '../shared/types/server';
-
+import { Socket } from 'socket.io';
 
 interface JobOptSpecs {
     engine : EngineInterface,
@@ -13,7 +13,7 @@ interface JobOptSpecs {
     internalIP : string,
     internalPort : number,
     cache:string,
-    fromConsumerMS:boolean
+    socket:Socket
 }
 // Test for jobProfile
 
@@ -23,26 +23,24 @@ export function transformProxyToJobOpt( jobID:uuid,
                                         joSpec:JobOptSpecs
                                         ):JobOpt {
 
-    const { engine, emulator, internalIP, internalPort, cache, fromConsumerMS } = joSpec;
-    // All engine parameters are set at this stage, working on folder creations should be safe
-    // Check for intermediary folders in workdirpath
-    // rootCache /job.iCache??""/ namespace ??"" / jobID
+    const { engine, emulator, internalIP, internalPort, cache, socket } = joSpec;
    
     const jo:Partial<JobOpt> =  {
-        // "engineHeader": engine.generateHeader(jobID, jobProfileString, workDir),
-     "engine" : engine,
-     "emulated": emulator,
-     "internalIP": internalIP,
-     "internalPort" : internalPort,
-     "jobProfile" : jopx.jobProfile ? jopx.jobProfile : "default",
-     "fromConsumerMS" : fromConsumerMS
+    
      };
-
+    console.log('SSSC' + uFormat(jo.socket));
     for (let jok of JobOptKeys.filter((k:string) => k != 'inputs')) {
         //@ts-ignore
         jo[jok] = jopx[jok];
     }
-    jo.id = jobID;
+    jo.id             = jobID;
+    jo.engine         = engine;
+    jo.emulated       = emulator;
+    jo.internalIP     = internalIP;
+    jo.internalPort   = internalPort;
+    jo.jobProfile     = jopx.jobProfile ? jopx.jobProfile : "default";
+    jo.fromConsumerMS = socket ? true : false;
+    jo.socket         =socket ?? undefined
 
     jo.workDir = `${cache}/${jobID}`;
     if (jopx.namespace || engine.iCache) {       
@@ -53,7 +51,7 @@ export function transformProxyToJobOpt( jobID:uuid,
         logger.debug(`Set job workDir to ${jo.workDir}`);
     }
 
-    jo.inputs = remoteData.inputs;  // TO RESUME HERE
+    jo.inputs = remoteData.inputs;
     jo.script = remoteData.script;
     logger.debug(`Transformed JobOpt is :\n${uFormat(jo)}`)
     return jo as JobOpt;

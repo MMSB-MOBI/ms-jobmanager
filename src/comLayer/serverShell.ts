@@ -72,6 +72,7 @@ export function startSocketServer(port:number):SocketRegistry {
 //type socketPullArgs = [Job|JobProxy, Promise<Readable>, Promise<Readable>] | [Job|JobProxy, undefined, undefined];
 
 export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<Readable>, stderrStreamOverride?:Promise<Readable>):void {
+    logger.debug("THIS IS SOCKET PULL MAN !!");
     if (stdoutStreamOverride)
         logger.debug(`${jobObject.id} Shimmering Socket job pulling`);
     else

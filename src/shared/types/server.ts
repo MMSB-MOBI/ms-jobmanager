@@ -1,7 +1,7 @@
 import { JobOptBase } from './common/jobopt_model';
 import { EngineInterface, EngineSpecs, BinariesSpec, isBinariesSpec, isEngineSpec } from '../../lib/engine';
 import { Readable } from 'stream';
-
+import { Socket as SocketServer } from 'socket.io';
 import path = require('path');
 import {logger} from '../../logger';
 import util = require('util');
@@ -25,6 +25,7 @@ export interface JobOpt extends JobOptBase{
     fromConsumerMS : boolean
     inputs : Record<string, Readable>|JobInputs,
     script : Readable
+    socket : SocketServer
 }
 
 export interface netStreamInputs {

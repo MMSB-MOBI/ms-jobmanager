@@ -1,4 +1,3 @@
-import { Socket } from "socket.io-client";
 import { JobInputs } from '../../../job/inputs';
 import { Readable } from 'stream';
 import { logger } from '../../../logger';
@@ -15,7 +14,7 @@ export interface JobOptBase {
     modules? : string [],    
     namespace? :string,
     script? : Readable|Path,    
-    socket?:Socket,
+  
     sysSettingsKey?:string,
     tagTask? : string,    
     ttl? : number
@@ -41,7 +40,7 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
         ttl: undefined,
         sysSettingsKey:undefined,
         inputs: {},
-        socket: undefined  
+       
     };
     for (const [key, value] of Object.entries(opt)) {
         if (!jobOptBase.hasOwnProperty(key)) {
@@ -75,12 +74,6 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
                 typeLogError(key, 'Readable|Path', value);
             else
                 jobOptBase[key] = value;
-        if(key == 'socket')
-            if(!(value instanceof(Socket)))
-                typeLogError(key, 'Socket', value);
-            else
-                jobOptBase[key] = value;
-                
     }
      
     return jobOptBase;
@@ -117,12 +110,6 @@ export function isJobOptBase(data:any): data is JobOptBase {
         if(key == 'script')
             if(!isReadableOrString(value)) {
                 typeLogError(key, 'Readable|string', value);
-                return false;
-            }
-            
-        if(key == 'socket')
-            if(!(value instanceof(Socket))) {
-                typeLogError(key, 'Socket', value);
                 return false;
             }
     }

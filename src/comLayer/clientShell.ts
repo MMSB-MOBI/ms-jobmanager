@@ -117,7 +117,7 @@ class jobAccumulator extends EventEmitter {
     }
 
     appendToQueue(/*data,*/ jobOpt:JobOptProxy):JobProxy {
-        const job = new JobProxy(jobOpt);
+        const job = new JobProxy(jobOpt, socket);
         this.jobsPool[job.id] = job;
         //data.id = job.id;
         this.jobsQueue.push({
@@ -194,10 +194,10 @@ class jobAccumulator extends EventEmitter {
             logger.debug(`Job ${jobID} was bounced !`);
             self.jobsPromisesReject[jobID]({ 'type': 'bouncing', jobID });
         });
-        socket.on('granted', (d) => {
+        socket.on('granted', (jobID) => {
             logger.silly(`Client : socket on granted`)
-            logger.debug(`Job ${util.format(d)} was granted !`);
-            self.jobsPromisesResolve[d.jobID](d.jobID);
+            logger.debug(`Job ${jobID} was granted !`);
+            self.jobsPromisesResolve[jobID](jobID);
         });
         socket.on('lostJob', (_jobSerial:string) => {
             logger.silly(`Client : socket on lostJob`)
@@ -286,7 +286,6 @@ export function start(opt:any):Promise<EventEmitter> {
 }
 
 function pull(jobSerial:JobSerial) { // Should not need to decode anymore
-    //let jobSerial = JSON.parse(_jobSerial);
     logger.debug(`pulling Object : ${util.format(jobSerial)}`);
     let jobObject = jobAccumulatorObject.flush(jobSerial.id);
     if (!jobObject)
@@ -300,32 +299,10 @@ function pull(jobSerial:JobSerial) { // Should not need to decode anymore
     ss(socket).emit(`${jobObject.id}:stdout`, jobObject.stdout);
     ss(socket).emit(`${jobObject.id}:stderr`, jobObject.stderr);
     jobObject.emit('completed', jobObject.stdout, jobObject.stderr, jobObject);
-    /*
-    console.log("JM-CLIENT CONTEXT##################");
-    const stream = ss.createStream();
-    console.log("JM-CLIENT CONTEXT SOCKET");
-    console.dir(socket);
-    console.log("JM-CLIENT CONTEXT SS_STREAM");
-    console.dir(stream);
-    ss(socket).emit('fsRead', stream, {name: 'toto.txt'});   
-    const chunks = [];
-    stream.on('data', (chunk) => chunks.push(chunk))
-    stream.on('end', () => {
-        const _ = Buffer.concat(chunks).toString('utf8');             
-        console.log("JM-CLIENT CONTEXT==>" + _);
-    });
-    console.log("JM-CLIENT CONTEXT##################SAFE")
-    */
     return;
 }
 export function push(data:any):JobProxy {
-    // Minimal combinaison of letter 
-    /*
-    if(!isJobOptProxy(data))
-        throw('Pushed data has wrong format');
-    */
    const jobOpt = JobOptClientFactory(data);
-    // console.log(`Got that\n${util.format(data)}`);
     logger.debug(`Passing following data to jobProxy constructor\n${util.format(jobOpt)}`);
     let job = jobAccumulatorObject.appendToQueue(/*data,*/ jobOpt);
     return job;
@@ -367,6 +344,22 @@ export function get_socket() {
     return socket;
 }
 
+export interface OptFS {
+    asString : boolean
+}
+
+const streamToString = async (stream:Readable):Promise<string> => {
+    const chunks: Uint8Array[] = [];
+    return new Promise ( (res, rej) => { 
+        stream.on('data', (chunk: Uint8Array) => chunks.push(chunk))
+        stream.on('end', () => {
+            const _ = Buffer.concat(chunks).toString('utf8');             
+            res(_);
+        });
+        stream.on('error', (err:string) => rej(err));
+    })
+};
+
 export class JobFileSystemInterface {
    /* private socket:any;
     private jobID:string;
@@ -388,32 +381,29 @@ export class JobFileSystemInterface {
         });
     }
 
-    async read(fileName:string):Promise<Readable>{
-        return new Promise( (res, rej) => {
-        // console.log("FS-INTERFACE CONTEXT##################");
-            const netStream = ss.createStream();
-        /* console.log("FS-INTERFACE CONTEXT SOCKET");
-            console.dir(this.socket);
-            console.log("FS-INTERFACE CONTEXT SS_STREAM");
-            console.dir(stream);
+    async readToStream(fileName:string):Promise<Readable>{
+        const netStream = await this._read(fileName);
+        return netStream as Readable;
+    }
 
-            this.socket.emit("DoyouMind");
-            */
-            ss(this.socket).emit('fsRead', netStream, {name:fileName /*'toto.txt'*/});   
-            //stream.pipe(fs.createWriteStream("fsread_mtf.txt"));
-            /*const chunks = [];
-            stream.on('data', (chunk) => chunks.push(chunk))
-            stream.on('end', () => {
-                const _ = Buffer.concat(chunks).toString('utf8');             
-            // console.log("FS-INTERFACET CONTEXT==>" + _);
-            });*/
-            
+    async readToString(fileName:string):Promise<string> {
+        const netStream = await this._read(fileName);
+        const stdout = await streamToString(netStream)
+        return(stdout)
+    }
+
+    async _read(fileName:string/*, opt?:OptFS*/):Promise<Readable>{
+        return new Promise( (res, rej) => {
+            const netStream = ss.createStream();
+
+            ss(this.socket).emit('fsRead', netStream, {name:fileName});             
+       
             res(netStream);
-            //console.log("FS-INTERFACE CONTEXT##################SAFE");
         });    
     }
-    async _read(fileName:string):Promise<string>{
-      console.log(`Tryin to read ${fileName}`);
+
+    async __read(fileName:string):Promise<string>{
+      
         this.socket.emit('read', fileName);
         return new Promise( (res, rej) => {
             this.socket.on(`${fileName}:open_error`, (e:string) => rej(e));

@@ -142,16 +142,19 @@ async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, MS_socket:Socket):Pro
     }
     
     const remoteData:netStreamInputs = await granted(jobOptProxy, jobID, MS_socket); 
+
+    console.log("POUETT\n" + uFormat(MS_socket));
     const jobOpt = transformProxyToJobOpt(jobID, jobOptProxy, remoteData, 
         { engine, emulator, internalIP, internalPort, cache: cacheDir as string,
-            fromConsumerMS:true
+            socket:MS_socket
         })
     const _ = _push(jobOpt);
 }
 
 
 function _push(jobOpt:JobOpt):Job {
-    const newJob = new Job(jobOpt);
+    logger.debug(`Attempting Job construction w/ following jobOpt element\n${uFormat(jobOpt)}`);
+    const newJob = new Job(jobOpt, jobOpt.id);
 
    
                   // 3 outcomes
@@ -270,13 +273,14 @@ function _pull(job:Job):void {
 function _storeAndEmit(jid:string, status?:string) {
 
     //let jobSel = {'jid' : jid};
-    logger.silly("Store&Emit");
+    logger.debug("Store&Emit");
     let job:Job|undefined = liveMemory.getJob({ jid });
     if (job) {
         liveMemory.removeJob({ jid });
         if(liveMemory.size("notBound") < nWorker)
             openBar();
-            job.jEmit("completed", job);
+        console.log("----->---->" + jid);
+        job.jEmit("completed", job);
 
         const serialJob:JobSerial = job.getSerialIdentity(); 
         // add type 

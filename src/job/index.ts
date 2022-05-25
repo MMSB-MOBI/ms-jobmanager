@@ -17,7 +17,7 @@ import { JobSerial } from '../shared/types/server'
 import { Readable } from 'stream';
 import { JobBase } from '../shared/types/common/job_model';
 import { socketPull } from '../comLayer/serverShell';
-
+import { Socket as SocketServer } from 'socket.io'
 /* The jobObject behaves like an emitter
  * Emitter exposes following event:
  *          'lostJob', {Object}jobObject : any job not found in the process pool
@@ -66,7 +66,7 @@ export class Job extends JobBase implements JobOpt  {
     ERR_jokers :number = 3; //  Number of time a job is allowed to be resubmitted if its stderr is non null
     MIA_jokers :number = 3; //  Number of time
     engine : EngineInterface;
-
+    socket : SocketServer;
     fromConsumerMS : boolean = false;
     script:Readable;
     workDir :string;
@@ -81,12 +81,15 @@ export class Job extends JobBase implements JobOpt  {
     fileOut? :string;
     fileErr? : string;
     _stdout? : ReadStream;
-    _stderr? : ReadStream;
+    _stderr? : ReadStream;    
     isShimmeringOf?:Job
     hasShimmerings:Job[] = []  // Can only be Job instances not JobProxy
 
-    constructor( jobOpt:JobOpt, uuid? :string ){
-        super(jobOpt, uuid);       
+    constructor( jobOpt:JobOpt,uuid? :string ){
+        super(jobOpt, uuid);
+        this.socket = jobOpt.socket;
+        console.log("###" + uuid  + "###");
+        logger.debug(`Job Constuctor JobOpt:${jobOpt}`);
         this.internalPort = jobOpt.internalPort;
         this.internalIP = jobOpt.internalIP;
         this.workDir = jobOpt.workDir;
@@ -94,7 +97,7 @@ export class Job extends JobBase implements JobOpt  {
         this.script = jobOpt.script;
         //const completeProfile = jobOpt.jobProfile === "default" ? undefined : getSlurmProfile(jobOpt.jobProfile)
         //this.execUser = completeProfile ? completeProfile.execUser : undefined
-      
+        
         if ('emulated' in jobOpt)
             this.emulated = jobOpt.emulated;
      
@@ -337,7 +340,7 @@ export class Job extends JobBase implements JobOpt  {
         // 2ways Forwarding event to consumer or publicMS 
     // WARNING wont work with streams
     jEmit(eName:string|symbol, ...args: any[]):boolean {
-        logger.silly(`jEmit(this) ${String(eName)}`);
+        logger.debug(`jEmit ${String(eName)}`);
         this.hasShimmerings.forEach((shimJob:Job) => {
             shimJob.jEmit(eName, shimJob);
         }); 
@@ -360,7 +363,8 @@ export class Job extends JobBase implements JobOpt  {
                 stdout = this.stdout();
             }
             Promise.all([stdout, stderr]).then((results)=>{
-                logger.silly("Emitting completed event");
+                logger.debug("Emitting completed event");
+                logger.debug(`${uFormat(this)}`);
                 this.emit('completed', ...results)
             });
         }
@@ -376,7 +380,7 @@ export class Job extends JobBase implements JobOpt  {
             if(eName === 'completed') {
 
                 //logger.debug(`SSP::\n${uFormat(args)}`);
-               
+                logger.debug("KIKOU");
                 const _parentJob:Job|undefined = this.isShimmeringOf;
                 socketPull(this, this.isShimmeringOf ? this.isShimmeringOf.stdout() : undefined,
                                  this.isShimmeringOf ? this.isShimmeringOf.stderr() : undefined

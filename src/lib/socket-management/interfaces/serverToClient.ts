@@ -5,5 +5,7 @@ export interface ServerToClientEvents {
     noArg: () => void;
     newJobSocket: (jobOpt:JobOptProxy) => void;
     bounced:(jobID:uuid) => void;
+    granted:(jobID:uuid) => void;
     withAck: (d: string, callback: (e: number) => void) => void;
+
 }

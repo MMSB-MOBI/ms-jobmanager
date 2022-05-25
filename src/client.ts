@@ -18,7 +18,6 @@ class JmClient {
     async start(adress:string, port:number) {
         this.port = port
         this.TCPip = adress
-        console.log(this.port,  this.TCPip )
         return new Promise((res, rej) => {
             if (this._connect) res(true)
             else{
@@ -48,7 +47,7 @@ class JmClient {
         return stdout;
     }
 
-    async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { // Guillaume doit typer l'objet job
+    async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 
 
         return new Promise((res, rej) => {
             this.start(this.TCPip as string, this.port as number).then(() => {
@@ -95,7 +94,7 @@ class JmClient {
                 job.on("completed", (stdout: any, stderr: any) => {
                     const chunks: Uint8Array[] = [];
                     const errchunks: Uint8Array[] = [];
-                    console.log("STDOUT");
+                   
                     stdout.on('data', (chunk: Uint8Array) => chunks.push(chunk))
                     stdout.on('end', () => {
                         const _ = Buffer.concat(chunks).toString('utf8');
@@ -108,8 +107,7 @@ class JmClient {
                     });
                     stderr.on('data', (chunk: Uint8Array) => errchunks.push(chunk))
                     stderr.on('end', () => {
-                        if (errchunks.length > 0) {
-                            console.log('FUCK')
+                        if (errchunks.length > 0) {                          
                             const _ = Buffer.concat(errchunks).toString('utf8');
                             console.log(`erreur standard job>${_}<`);
                             if (_) rej(_)

@@ -52,7 +52,7 @@ ws.addColors(myCustomLevels.colors);
 type logLvl = 'debug'|'info'|'success'|'warn'|'error'|'critical';
 function isLogLvl (value:string) : value is logLvl {
     return value === 'debug' || value === 'info' || value === 'success' || value === 'warning'
-    || value === 'error' || value === 'critical';
+    || value === 'error' || value === 'critical' || value == 'silly';
 }
 export function setLogLevel (value : string) : void {
     if (!isLogLvl(value)) throw `Unrecognized logLvel "${value}"`;
