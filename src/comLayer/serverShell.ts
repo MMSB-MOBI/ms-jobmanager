@@ -15,6 +15,8 @@ const my_logger = require('../logger.js');
 const logger = my_logger.logger;
 import { netStreamInputs } from '../shared/types/server';
 import { ClientToServerEvents, ServerToClientEvents,/* InterServerEvents, SocketData*/ } from '../lib/socket-management/interfaces';
+import { access, constants } from 'fs';
+import { responseFS } from '../lib/socket-management/interfaces';
 /*let io:SocketIOServer;
 let socketRegistry:Record<string, Socket> = {};
 */
@@ -106,6 +108,19 @@ export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Pro
     });
     //_SOCKET.on("DoyouMind", ()=> { console.log("I dont mind")});
     jobObject.socket.on("DoyouMind", ()=> { console.log("I dont mind")});
+
+    jobObject.socket.on("isReadable", (fileName, jobID, callback) => {
+       jobObject.access(fileName)
+        .then( ()=> {
+            callback({ status : 'ok', content: ''} as responseFS)
+        })
+        .catch( (err:NodeJS.ErrnoException) => {
+            callback({
+                status : err ? 'error' : 'ok',
+                content : err  ?? ''
+            } as  responseFS)
+        });
+    });
     //ss(_SOCKET).on('fsRead', function(stream, data) {
     ss(jobObject.socket).on('fsRead', function(stream:WriteStream, data:any) {
         logger.info(`${jobObject.id} Trying to start pumping fsRead from ${data.name}`);

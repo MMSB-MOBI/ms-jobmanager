@@ -1,32 +1,36 @@
-/*
+
 import jmClient from '../client';
 import { Readable } from 'stream';
 import { logger, setLogLevel } from '../logger';
 
 setLogLevel("info");
-logger.warn("Testing FS interface");
+logger.warn("Testing simultaneous resolution of identical jobs");
 const script = `${__dirname}/data/hello.sh`
 console.log(script);
-const exportVar = { "sleepTime" : "5" };
+const exportVar = { "sleepTime" : "10" };
 
 const port = 2020;
 const TCPip = "127.0.0.1";
 
+/*
+Identical jobs are submitted at different times, but all resolved simultaneously.
+B/C submitted jobs identical to already running ones are bound to the first/genuine one.
+*/
 
 (async() => {
     try {
         await jmClient.start(TCPip, port);
-
-        const { stdout, jobFS } = await jmClient.pushFS({ script, exportVar })
-        logger.info(`Job standard output:: ${stdout}`);
-        const fsItems:string[] = await jobFS.list();
-        logger.info(`Listed items at root of job work directory are :\n-${fsItems.join("\n-")}`);
-        const contentStream =  await jobFS.read(fsItems[0]);
-        const _  = await streamToString(contentStream);
-        console.log(`File content of ${fsItems[0]} is ::\n${_}`);
+        [1000,3000,6000].map((t,i) => {
+            
+            setTimeout( ()=> {
+                logger.info(`Submitting job number ${i} delayed by ${t}`);
+                jmClient.push({ script, exportVar })
+                    .then( (stdout:string)=> logger.info(`job number ${i} stdout:${stdout}`) );
+                //logger.info("Waiting for a while ...")
+            }, t);
+        });
     } catch(e) {
         console.error(`Unable to connect ${e}`);
     }
 
 })();
-*/

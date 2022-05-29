@@ -1,5 +1,5 @@
 import  { EventEmitter } from 'events';
-import { createWriteStream, readdir, chmod, ReadStream, createReadStream, readFileSync, writeFile, writeFileSync, stat } from 'fs';
+import { createWriteStream, readdir, chmod, ReadStream, createReadStream, readFileSync, writeFile, writeFileSync, stat, access, constants } from 'fs';
 
 import mkdirp = require('mkdirp');
 import {format as uFormat } from 'util';
@@ -10,8 +10,7 @@ import md5 = require('md5');
 import {logger} from '../logger.js';
 import { JobOpt } from '../shared/types/server';
 import childProc = require('child_process');
-import { JobInputs } from './inputs';
-import { JobProxy } from '../shared/types/client'
+import { Path } from '../shared/types/base'
 import { EngineInterface, getEngine } from '../lib/engine';
 import { JobSerial } from '../shared/types/server'
 import { Readable } from 'stream';
@@ -124,7 +123,7 @@ export class Job extends JobBase implements JobOpt  {
         this.engine.setSysProfile(sysSettingsKey);
     }
     
-    async list(path?:string):Promise<string[]> {
+    async list(path?:Path):Promise<string[]> {
         /* job API for through socket results file access  */
         const workDirContent:string[] = []
         const jobID = this.id;
@@ -139,7 +138,7 @@ export class Job extends JobBase implements JobOpt  {
             }); 
         });
     }
-    async read(relativePath:string):Promise<ReadStream>{
+    async read(relativePath:Path):Promise<ReadStream>{
         //const subPath = relativePath ?? '';
         const path = `${this.workDir}/${relativePath}`
         logger.info(`reading fs from ${path}`)
@@ -149,6 +148,17 @@ export class Job extends JobBase implements JobOpt  {
             readStream.on('error', (err) => {
                 logger.error(`Error reading from ${path}` + '::' + err);
                 reject(err);
+            });
+        });
+    }
+    async access(maybeRelativeFileName:Path):Promise<void> {
+        const path = `${this.workDir}/${maybeRelativeFileName}`
+        return new Promise ( (res, rej) => {
+            access(path, constants.R_OK, (err:NodeJS.ErrnoException) => {
+                if(err)
+                    rej(err)
+                else
+                    res();
             });
         });
     }

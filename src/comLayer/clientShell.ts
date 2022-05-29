@@ -3,18 +3,18 @@ import { JobProxy, JobOptProxy, JobOptClientFactory } from '../shared/types/clie
 import { io, Socket } from "socket.io-client";
 import { createReadStream } from 'fs';
 import { Readable } from 'stream'
-import { ClientToServerEvents, ServerToClientEvents} from '../lib/socket-management/interfaces';
+import { ClientToServerEvents, ServerToClientEvents, responseFS} from '../lib/socket-management/interfaces';
 
-let ss = require('socket.io-stream');
-let util = require('util');
-let socket:Socket<ServerToClientEvents, ClientToServerEvents>;
-let events = require('events');
-let my_logger = require("../logger.js")
-let logger = my_logger.logger
+const ss = require('socket.io-stream');
+import { format as uFormat } from 'util';
+import { logger } from '../logger';
 import { ServerStatus } from '../shared/types/common'
 import { JobSerial } from '../shared/types/server'
 import { Writable } from 'stream';
 import { uuid } from '../shared/types/base';
+import { Path } from '../shared/types/base';
+let socket:Socket<ServerToClientEvents, ClientToServerEvents>;
+
 type JobWrapStatus = 'idle' | 'sent' | 'bounced' | 'granted' | 'completed';
 
 interface JobWrap {
@@ -90,16 +90,16 @@ class jobAccumulator extends EventEmitter {
                 const _jobOpt = jobWrap.jobOpt;
                 const job = jobWrap.job;
                 const jobOpt = buildStreams(_jobOpt, job); // 1st arg carries data to server, 2nd arg register events
-                logger.debug(`jobOpt passed to socket w/ id ${job.id}:\n${util.format(jobOpt)}`);
+                logger.debug(`jobOpt passed to socket w/ id ${job.id}:\n${uFormat(jobOpt)}`);
                 ss(socket, {}).on(job.id + '/script', (stream:Writable) => { jobOpt.script.pipe(stream); });
                 for (let inputEvent in jobOpt.inputs)
                     ss(socket, {}).on(job.id + '/' + inputEvent, (stream:Writable) => {
                         jobOpt.inputs[inputEvent].pipe(stream);
                     });
-                logger.silly(`EMITTING THIS ORIGINAL ${job.id}\n${util.format(jobOpt)}`);
+                logger.silly(`EMITTING THIS ORIGINAL ${job.id}\n${uFormat(jobOpt)}`);
             }
             else {
-                logger.silly(`EMITTING THIS RESUB ${jobWrap.job.id}\n${util.format(jobWrap.jobOpt)}`);
+                logger.silly(`EMITTING THIS RESUB ${jobWrap.job.id}\n${uFormat(jobWrap.jobOpt)}`);
             }
             jobWrap.status = 'sent';
             // I'd prefer socket.emit('newJobSocket', job.id, jobWrap.jobOpt);
@@ -177,7 +177,7 @@ class jobAccumulator extends EventEmitter {
         if (this.jobsPool.hasOwnProperty(maybeJobID))
             return this.jobsPool[maybeJobID];
         logger.error(`job id ${maybeJobID} is not found in local jobsPool`);
-        logger.error(`jobsPool : ${util.format(Object.keys(this.jobsPool))}`);
+        logger.error(`jobsPool : ${uFormat(Object.keys(this.jobsPool))}`);
         return undefined;
     }
     bind(socket:Socket) {
@@ -224,7 +224,7 @@ class jobAccumulator extends EventEmitter {
         });
         ['scriptSetPermissionError', 'scriptWriteError', 'scriptReadError', 'inputError'].forEach((eName) => {
             socket.on(eName, (err, jobSerial) => {
-                logger.fatal(`socket.on error ${err} ${util.format(jobSerial)}`)
+                logger.fatal(`socket.on error ${err} ${uFormat(jobSerial)}`)
                 let jRef = this.getJobObject(jobSerial.id);
                 if (!jRef)
                     return;
@@ -286,12 +286,12 @@ export function start(opt:any):Promise<EventEmitter> {
 }
 
 function pull(jobSerial:JobSerial) { // Should not need to decode anymore
-    logger.debug(`pulling Object : ${util.format(jobSerial)}`);
+    logger.debug(`pulling Object : ${uFormat(jobSerial)}`);
     let jobObject = jobAccumulatorObject.flush(jobSerial.id);
     if (!jobObject)
         return;
     logger.debug('completed event on socket');
-    logger.silly(`${util.format(jobObject)}`);
+    logger.silly(`${uFormat(jobObject)}`);
     jobObject.stdout = ss.createStream();
     jobObject.stderr = ss.createStream();
     logger.debug(`Pulling for ${jobObject.id}:stdout`);
@@ -303,7 +303,7 @@ function pull(jobSerial:JobSerial) { // Should not need to decode anymore
 }
 export function push(data:any):JobProxy {
    const jobOpt = JobOptClientFactory(data);
-    logger.debug(`Passing following data to jobProxy constructor\n${util.format(jobOpt)}`);
+    logger.debug(`Passing following data to jobProxy constructor\n${uFormat(jobOpt)}`);
     let job = jobAccumulatorObject.appendToQueue(/*data,*/ jobOpt);
     return job;
 }
@@ -314,7 +314,7 @@ interface SourcesMap  {
 }
 
 function buildStreams(data:any, job:JobProxy) {
-    logger.debug(`-->${util.format(data)}`);
+    logger.debug(`-->${uFormat(data)}`);
     //let jobInput = new jobLib.jobInputs(data.inputs);
     let jobInput = job.inputs;
     // Register error here at stream creation fail
@@ -336,16 +336,12 @@ function buildStreams(data:any, job:JobProxy) {
     data.inputs = sMap.inputs;
     /* logger.debug("streams buildt");
      logger.debug(typeof (sMap.script));
-     logger.debug(`${util.format(sMap.script)}`);*/
+     logger.debug(`${uFormat(sMap.script)}`);*/
     return data;
 }
 
 export function get_socket() {
     return socket;
-}
-
-export interface OptFS {
-    asString : boolean
 }
 
 const streamToString = async (stream:Readable):Promise<string> => {
@@ -371,7 +367,7 @@ export class JobFileSystemInterface {
         this.jobID = jobID;
         this.socket = socket;
     }
-    async list(path?:string/*?:string*/):Promise<string[]> {
+    async list(path?:Path):Promise<string[]> {
         this.socket.emit('list', {jobID: this.jobID, path});
         
         return new Promise( (res, rej) => {
@@ -392,64 +388,19 @@ export class JobFileSystemInterface {
         return(stdout)
     }
 
-    async _read(fileName:string/*, opt?:OptFS*/):Promise<Readable>{
+    async _read(fileName:Path):Promise<Readable>{
         return new Promise( (res, rej) => {
-            const netStream = ss.createStream();
-
-            ss(this.socket).emit('fsRead', netStream, {name:fileName});             
-       
-            res(netStream);
+            // First we check for file status, then we pull stream and resolve/forward it
+            this.socket.emit("isReadable", fileName, this.jobID, (response:responseFS) => {
+                if (response.status == "ok") {
+                    const netStream = ss.createStream();
+                    ss(this.socket).emit('fsRead', netStream, {name:fileName});             
+                    res(netStream);
+                } else {
+                    rej(uFormat({ jobID : this.jobID, message: response.content}));
+                }
+//// emit is readable
+              });
         });    
     }
-
-    async __read(fileName:string):Promise<string>{
-      
-        this.socket.emit('read', fileName);
-        return new Promise( (res, rej) => {
-            this.socket.on(`${fileName}:open_error`, (e:string) => rej(e));
-            this.socket.on(`${fileName}:open_success`, (fsStreamingToken:string) => {  
-                console.log("Successfull open file id [" + fsStreamingToken + "]")
-                const networkStream = ss.createStream();
-                console.log(typeof(this));
-                console.dir(this);
-                console.log(util.inspect(this));
-                console.log("#############");
-                console.dir(networkStream);
-
-
-                ss(this.socket).emit(fsStreamingToken, networkStream);
-                //networkStream.on('data', () => { console.log("DATA !!");})
-               // console.dir(stream);
-               // console.dir(this.socket);
-               // console.dir(ss);
-                //console.log(this.socket.hasOwnProperty)
-                //console.log("##binding stream to", fsStreamingToken);
-                //ss(this.socket) // this works
-                //ss(this.socket).emit(fsStreamingToken, networkStream);
-                //networkStream.pipe(fs.createWriteStream('file.txt'))
-                console.log("BOUND")
-                res(networkStream)
-                /*console.log('ffsk::' + fsStreamingToken);
-                //res(fsStreamingToken);
-                    streamToString(stream)
-                        .then( (fileContent:string)=>res(fileContent))
-                        .catch(e => rej(e) );*/
-                //})
-            });
-        });
-    }
-
-  /*  async readStream(fileName:string):Promise<fs.ReadStream> {
-        this.socket.emit('read', fileName);
-        return new Promise( (res, rej) => {
-            this.socket.on(`${fileName}:open_error`, (e:string) => rej(e));
-            this.socket.on(`${fileName}:open_success`, (fsStreamingToken:string) => {  
-                const stream = ss.createStream();
-                ss(this.socket).emit(fsStreamingToken, stream);
-                stream.on("open", () => res(stream));
-                stream.on("error", (err:string) => rej(err));
-            });
-        });
-    }
-*/
 }
