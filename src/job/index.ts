@@ -373,8 +373,8 @@ export class Job extends JobBase implements JobOpt  {
                 stdout = this.stdout();
             }
             Promise.all([stdout, stderr]).then((results)=>{
-                logger.debug("Emitting completed event");
-                logger.debug(`${uFormat(this)}`);
+                logger.debug("Emitting completed event for job " + this.id);
+                logger.silly(`${uFormat(this)}`);
                 this.emit('completed', ...results)
             });
         }
@@ -387,10 +387,7 @@ export class Job extends JobBase implements JobOpt  {
         // otherwise, we JSON.stringify arguments and emit them on socket
         if (this.socket) {
            // logger.warn(`jEmitToSocket ${eName}`);
-            if(eName === 'completed') {
-
-                //logger.debug(`SSP::\n${uFormat(args)}`);
-                logger.debug("KIKOU");
+            if(eName === 'completed') {              
                 const _parentJob:Job|undefined = this.isShimmeringOf;
                 socketPull(this, this.isShimmeringOf ? this.isShimmeringOf.stdout() : undefined,
                                  this.isShimmeringOf ? this.isShimmeringOf.stderr() : undefined

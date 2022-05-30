@@ -95,7 +95,7 @@ export function start(opt:JobManagerSpecs):EventEmitter {
         logger.debug(`Listening for consumer microservices at : ${opt.microServicePort}`);
         microServiceSocket
         .on('newJobSocket', pushMS)
-        .on('connection',() => logger.debug('Connection on microservice consumer socket'));
+        .on('clientMainSocketConnection',() => logger.debug('Connection on microservice consumer socket'));
     }
 
     nWorker = opt.nWorker || nWorker;
@@ -131,22 +131,21 @@ export function start(opt:JobManagerSpecs):EventEmitter {
 }
 
 // New job packet arrived on MS socket, 1st arg is streamMap, 2nd the socket
-async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, MS_socket:Socket):Promise<void> {
+async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, nspJobSocket:Socket):Promise<void> {
     logger.debug(`newJob Packet arrived w/ ${uFormat(jobOptProxy)}`);
     logger.silly(` Memory size vs nWorker :: ${liveMemory.size()} <<>> ${nWorker}`);
     if (liveMemory.size("notBound") >= nWorker) {
         logger.debug("must refuse packet, max pool size reached");
-        bouncer(jobID, MS_socket);
+        bouncer(jobID, nspJobSocket);
         return;
         // No early exit yet
     }
     
-    const remoteData:netStreamInputs = await granted(jobOptProxy, jobID, MS_socket); 
+    const remoteData:netStreamInputs = await granted(jobOptProxy, jobID, nspJobSocket); 
 
-    console.log("POUETT\n" + uFormat(MS_socket));
     const jobOpt = transformProxyToJobOpt(jobID, jobOptProxy, remoteData, 
         { engine, emulator, internalIP, internalPort, cache: cacheDir as string,
-            socket:MS_socket
+            socket:nspJobSocket
         })
     const _ = _push(jobOpt);
 }

@@ -7,3 +7,7 @@ export  interface responseFS {
     status: responseStatus,
     content:string|NodeJS.ErrnoException,
 }
+
+export interface InterServerEvents {
+    ping: () => void;
+}

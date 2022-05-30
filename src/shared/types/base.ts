@@ -6,6 +6,7 @@ import { Readable } from "stream";
 import { readable as isReadable } from 'is-stream';
 import { JobInputs } from '../../job/inputs';
 import { accessSync, constants } from 'fs';
+import { format as uFormat } from 'util';
 /*
     Usual basic container type interface and predicates
 */
@@ -73,11 +74,15 @@ export function isStringToStringOrStreamRecord (obj: any): obj is Record<string,
 
 export interface InputDataSocket { [s: string] : ReadStream|string; }
 export function isInputDataSocket(obj:any): obj is InputDataSocket {
+    
+    console.error("#### JE TESTE" + uFormat(obj));
     if (! (obj instanceof Object))
         return false;
+    console.error("#### JE TESTE");
     for(const [key, value] of Object.entries(obj)) {
         if(typeof(key) != 'string') return false;
-        if( !(value instanceof ReadStream) ) return false;
+        if( !(value instanceof ReadStream) && typeof(value) != 'string') 
+            return false;
     }
     return true;
 }
@@ -90,7 +95,7 @@ export function isValidJobOptInputs (obj: any): obj is InputDataSocket|string[]|
         }
         return true;
     }
-    return false;
+    return isInputDataSocket(obj);
 }
 
 export function isArrayOfString(obj:any): obj is string[] {

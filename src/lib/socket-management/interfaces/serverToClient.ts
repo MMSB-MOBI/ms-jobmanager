@@ -8,4 +8,5 @@ export interface ServerToClientEvents {
     granted:(jobID:uuid) => void;
     withAck: (d: string, callback: (e: number) => void) => void;
 
+
 }

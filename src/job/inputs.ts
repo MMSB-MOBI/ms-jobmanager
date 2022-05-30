@@ -35,6 +35,7 @@ export class JobInputs extends EventEmitter {
             let a = <Array<any>>data;
             for (let e of a.entries())
                 buffer[`file${e[0]}`] = e[1];
+            console.log("???" + uFormat(buffer));
         } else {
             buffer = data;
         }
@@ -44,16 +45,18 @@ export class JobInputs extends EventEmitter {
         logger.debug(`jobInput constructed w/ ${nTotal} items:\n${uFormat(buffer)}`);
 
         let self = this;
-        for (let key in data) {
+        for (let key in buffer) {
             if( isStream(buffer[key]) )
                 this.streams[key] = <Readable>buffer[key];
             else {
                 try{
                     //if (!safeNameInput) throw('file naming is unsafe');
                     let datum:string = <string>buffer[key];
+                    console.log(">>>" + datum);
                     lstatSync(datum).isFile();
-                    let k = basename(datum).replace(/\.[^/.]+$/, ""); 
-                    k = key; // GL Aug2018, HOTFIX from taskobject, maybe will break JM -- MS side let'see
+                    let k = basename(datum);//.replace(/\.[^/.]+$/, ""); 
+                    logger.debug(`key ${k} extracted from ${datum}`);
+                    //k = key; // GL Aug2018, HOTFIX from taskobject, maybe will break JM -- MS side let'see
                     this.streams[k] = createReadStream(datum);
                     logger.debug(`${buffer[key]} is a file, stream assigned to ${k}`);
 

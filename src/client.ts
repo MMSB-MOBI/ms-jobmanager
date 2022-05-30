@@ -1,19 +1,28 @@
-import * as jobManagerClient from './comLayer/clientShell';
-import{ JobFileSystemInterface } from './comLayer/clientShell' 
+//import * as jobManagerClient from './comLayer/clientShell';
+import{ JobFileSystem } from './comLayer/clientShell/fileSystem' 
 import { JobOptProxy, JobProxy } from './shared/types/client';
-
-
+import { ClientShell } from './comLayer/clientShell';
+import { uuid } from './shared/types/base';
+import uuidv4 = require('uuid/v4');
+import { logger, setLogLevel } from './logger';
+import { format as uFormat } from 'util';
+setLogLevel('debug');
 interface DatumPushFS {
     stdout:string,
-    jobFS: JobFileSystemInterface
+    jobFS: JobFileSystem
 }
 
 class JmClient {
     private port?: number;
     private TCPip?: string;
     private _connect: boolean = false;
-
-    constructor() {}
+    private _uuid: uuid;
+    private _shell:ClientShell;
+    constructor() {
+        this._uuid = uuidv4();
+        logger.info("jobmanager client instance " + this._uuid);
+        this._shell = new ClientShell();       
+    }
 
     async start(adress:string, port:number) {
         this.port = port
@@ -21,7 +30,7 @@ class JmClient {
         return new Promise((res, rej) => {
             if (this._connect) res(true)
             else{
-                jobManagerClient.start({ port: this.port, TCPip: this.TCPip }).then( (disconnectEmitter :any) => {
+                this._shell.start({ port: this.port, TCPip: this.TCPip }).then( (disconnectEmitter :any) => {
                     this._connect = true
                     disconnectEmitter.on("disconnect", () => {
                         this._connect = false
@@ -38,20 +47,20 @@ class JmClient {
 
     async pushFS(jobOpt: JobOptProxy): Promise<DatumPushFS>{
         const [job, stdout] = await this._push(jobOpt);
-        const jobFileInterface = new JobFileSystemInterface(job.id);
+        const jobFileInterface = this._shell.createFS(job);
         return { stdout, jobFS: jobFileInterface }
     }
 
-    async push(jobOpt: JobOptProxy):Promise<string> {
+    async push(jobOpt: JobOptProxy):Promise<string> {       
         const [job, stdout] = await this._push(jobOpt);
         return stdout;
     }
 
     async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 
-
+        logger.debug(`Pushing following ${uFormat(jobOpt)}`);      
         return new Promise((res, rej) => {
-            this.start(this.TCPip as string, this.port as number).then(() => {
-                const job = jobManagerClient.push(jobOpt);
+            this.start(this.TCPip as string, this.port as number).then(async () => {
+                const job = await this._shell.push(jobOpt);
                 job.on("scriptError", (message: string, data:JobOptProxy) => {
                     console.error("script error");
                     
@@ -121,5 +130,10 @@ class JmClient {
         })
     }
 }
+
+/*
+const jmClientSingleton =  new JmClient();
+export default jmClientSingleton;
+*/
 
 export default new JmClient();

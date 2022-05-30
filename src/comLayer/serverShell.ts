@@ -14,16 +14,20 @@ import { Readable } from 'stream';
 const my_logger = require('../logger.js');
 const logger = my_logger.logger;
 import { netStreamInputs } from '../shared/types/server';
-import { ClientToServerEvents, ServerToClientEvents,/* InterServerEvents, SocketData*/ } from '../lib/socket-management/interfaces';
+import { ClientToServerEvents, ServerToClientEvents, InterServerEvents/*, SocketData*/ } from '../lib/socket-management/interfaces';
 import { access, constants } from 'fs';
 import { responseFS } from '../lib/socket-management/interfaces';
-/*let io:SocketIOServer;
-let socketRegistry:Record<string, Socket> = {};
+import assert from 'assert'
+
+
+/* TO DO: GL June 22
+    bouncer and granted as SocketRegistry methods, in order to 
+    Trigger create job namespace only once newJob attempt was granted 
 */
 
 
 let socketRegistry:SocketRegistry;
-
+// Should handle new socket/job pair
 export class SocketRegistry extends EventEmitter {
     private registry:Record<string, Socket> = {};
     private server:SocketIOServer;
@@ -31,31 +35,58 @@ export class SocketRegistry extends EventEmitter {
     constructor(port:number){
         super();
         this.port   = port;
-        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents/*, InterServerEvents, SocketData*/>(port);
-        this.server.on('connection', (socket:Socket)=> {
-            const uuid = this.register(socket);
-            this.emit('connection'); // for login purposes
-            this.emit('clientSocketConnection', socket); // concrete socket
-            const self = this;
-            socket.on('newJobSocket', (jobID:uuid, jobOptProxy:JobOptProxy) => {
+        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents/*, InterServerEvents, SocketData*/>(this.port);
+        const self = this;
+        // Job NS logic
+        const uuidJobNsRegExp=/^\/job\b-[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/;
+        this.server.of(uuidJobNsRegExp).on("connection", (nspJobSocket) => {
+            const namespace = nspJobSocket.nsp;
+            logger.debug(`job namespace connection at ${namespace.name}`);
+            const guessJobID = namespace.name.replace('/job-', '');
+            self.registerJob(nspJobSocket, guessJobID);
+            nspJobSocket.on('newjob', (jobID:uuid, jobOptProxy:JobOptProxy) => {
+                logger.debug("newJobSocket event");
+                assert.equal(guessJobID, jobID);
                 logger.debug(`========\n=============\nnewJobSocket received container:\n${util.format(jobOptProxy)}`);
-                // Emitting the corresponding event/Symbols for socket streaming
-                //logger.debug(`========\n=============\nnewJobSocket emmitting container:\n${util.format(newData)}`);
-                self.emit('newJobSocket', jobID, jobOptProxy, socket);
+              
+                self.emit('newJobSocket', jobID, jobOptProxy, nspJobSocket);
             });
+            nspJobSocket.on('disconnect', () => {
+                logger.debug(`job socket ${namespace.name} disconnected`);
+                self.removeJob(guessJobID)
+            });
+
+            nspJobSocket.emit('registred');
+
+        });
+        // Client main NS logic
+        this.server.on('connection', (socket:Socket)=> {
+            const uuid = this.registerClient(socket);
+            //this.emit('connection'); // for login purposes
+            this.emit('clientMainSocketConnection', socket); // concrete socket
+            socket.on('newjob',()=> logger.error("OUPSS!!"));
             socket.on('disconnect', function () {
-                self.remove(uuid);
+                self.removeClient(uuid);
             });
 
         });
     }
-    register(socket:Socket):string {
+
+    registerClient(socket:Socket):string {
         const _ = uuidv4();
         this.registry[_] = socket;
         return _;
     }
-    remove(uuid:string) {
-        delete this.registry[uuid];
+    registerJob(socket:Socket, jobID:uuid):void {
+        this.registry[jobID] = socket;        
+    }
+    removeClient(clientID:uuid) {
+        logger.debug(`Removing ${clientID} client main socket`)
+        delete this.registry[clientID];
+    }
+    removeJob(jobID:uuid) {
+        logger.debug(`Removing ${jobID}  job socket`)
+        delete this.registry[jobID];
     }
     broadcast(status:ServerStatus) {
         for (let k in this.registry) {
@@ -73,44 +104,47 @@ export function startSocketServer(port:number):SocketRegistry {
 
 //type socketPullArgs = [Job|JobProxy, Promise<Readable>, Promise<Readable>] | [Job|JobProxy, undefined, undefined];
 
-export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<Readable>, stderrStreamOverride?:Promise<Readable>):void {
-    logger.debug("THIS IS SOCKET PULL MAN !!");
+export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<Readable>, stderrStreamOverride?:Promise<Readable>):void {
     if (stdoutStreamOverride)
-        logger.debug(`${jobObject.id} Shimmering Socket job pulling`);
+        logger.debug(`${job.id} Shimmering Socket job pulling`);
     else
-        logger.debug(`${jobObject.id} Genuine socket job pulling`);
+        logger.debug(`${job.id} Genuine socket job pulling`);
     //  logger.debug(`${util.format(stdout)}`);
-    const stdoutStream = stdoutStreamOverride ? stdoutStreamOverride : jobObject.stdout();
-    const stderrStream = stderrStreamOverride ? stderrStreamOverride : jobObject.stderr();
-    ss(jobObject.socket).on(`${jobObject.id}:stdout`, function (stream:WriteStream) {
+    const stdoutStream = stdoutStreamOverride ? stdoutStreamOverride : job.stdout();
+    const stderrStream = stderrStreamOverride ? stderrStreamOverride : job.stderr();
+    ss(job.socket).on(`${job.id}:stdout`, function (stream:WriteStream) {
         stdoutStream.then((_stdout) => {
-            logger.info(`${jobObject.id} Pumping stdout [${jobObject.id}:stdout]`);
+            logger.info(`${job.id} Pumping stdout [${job.id}:stdout]`);
             //logger.warn(`stdoutStream expected ${util.format(_stdout)}`);
             _stdout.pipe(stream);
         });
     });
-    ss(jobObject.socket).on(`${jobObject.id}:stderr`, function (stream:WriteStream) {
+    ss(job.socket).on(`${job.id}:stderr`, function (stream:WriteStream) {
         stderrStream.then((_stderr) => {
-            logger.silly(`${jobObject.id} Pumping stderr [${jobObject.id}:stderr]`);
+            logger.silly(`${job.id} Pumping stderr [${job.id}:stderr]`);
             //logger.warn(`stderrStream expected ${util.format(_stderr)}`);
             _stderr.pipe(stream);
         });
     });
 
-    if (!jobObject.socket)
+    if (!job.socket)
         return;
-    jobObject.socket.on("list", (path?:string) => { 
+    //const jobSocket:SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents> = jobObject.socket;
+    const jobSocket = job.socket;
+
+    jobSocket.on("list", (path:string, callback) => { 
+        logger.debug(`job ${job.id} is handling a list request`)
         //logger.info(`List request received for job ${jobID}`)
-        jobObject.list(path).then( (list_items)=>  {
-            if (jobObject.socket)
-                jobObject.socket.emit(`${jobObject.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
+        job.list(path).then( (list_items)=> {
+            //job.socket.emit(`${job.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
+            callback(list_items);
         });
     });
     //_SOCKET.on("DoyouMind", ()=> { console.log("I dont mind")});
-    jobObject.socket.on("DoyouMind", ()=> { console.log("I dont mind")});
+    jobSocket.on("DoyouMind", ()=> { console.log("I dont mind")});
 
-    jobObject.socket.on("isReadable", (fileName, jobID, callback) => {
-       jobObject.access(fileName)
+    jobSocket.on("isReadable", (fileName, callback) => {
+       job.access(fileName)
         .then( ()=> {
             callback({ status : 'ok', content: ''} as responseFS)
         })
@@ -122,17 +156,17 @@ export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Pro
         });
     });
     //ss(_SOCKET).on('fsRead', function(stream, data) {
-    ss(jobObject.socket).on('fsRead', function(stream:WriteStream, data:any) {
-        logger.info(`${jobObject.id} Trying to start pumping fsRead from ${data.name}`);
+    ss(jobSocket).on('fsRead', function(stream:WriteStream, data:any) {
+        logger.info(`${job.id} Trying to start pumping fsRead from ${data.name}`);
            /* const dum_stream = new Readable();
            
             dum_stream.push("AAA");
             dum_stream.push("BBB");
             dum_stream.push(null);
             dum_stream.pipe(stream);*/
-        jobObject.read(data.name).then( (readableStream)=>  {
+        job.read(data.name).then( (readableStream)=> {
             readableStream.pipe(stream);
-            logger.info(`${jobObject.id} Pumping fsRead 2/2`);
+            logger.info(`${job.id} Pumping fsRead 2/2`);
         });
 
 
@@ -154,7 +188,7 @@ export function socketPull(jobObject:Job/*|JobProxy*/, stdoutStreamOverride?:Pro
         }).catch(e => jobObject.socket.emit(`${filename}:open_error`, e));
     });*/
 
-    jobObject.socket.emit('completed', jobObject /*JSON.stringify(jobObject)*/);
+    job.socket.emit('completed', job /*JSON.stringify(jobObject)*/);
     // Can be customized w/ toJSON() // method
 }
 
@@ -168,7 +202,6 @@ export function bouncer(jobID:uuid, socket:Socket) {
 }
 
 // We build streams only at granted
-// We souhld type ss.createReadStream
 export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket):Promise<netStreamInputs> {
     return new Promise((resolve, reject) => {
         setTimeout(() => {
