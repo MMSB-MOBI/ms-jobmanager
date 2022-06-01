@@ -99,33 +99,29 @@ class JmClient {
                     console.error("job disconnected")
                     rej(`Error with job ${job.id} : disconnect error`)
                 })
-
+                /* stderr rej as precedence over stdout res */
                 job.on("completed", (stdout: any, stderr: any) => {
                     const chunks: Uint8Array[] = [];
                     const errchunks: Uint8Array[] = [];
                    
-                    stdout.on('data', (chunk: Uint8Array) => chunks.push(chunk))
-                    stdout.on('end', () => {
-                        const _ = Buffer.concat(chunks).toString('utf8');
-                        try {
-                            //const data =  _
-                            res([job, _]);
-                        } catch (e) {
-                            rej(e);
-                        }
-                    });
                     stderr.on('data', (chunk: Uint8Array) => errchunks.push(chunk))
                     stderr.on('end', () => {
                         if (errchunks.length > 0) {                          
-                            const _ = Buffer.concat(errchunks).toString('utf8');
-                            console.log(`erreur standard job>${_}<`);
-                            if (_) rej(_)
+                            const _ = Buffer.concat(errchunks).toString('utf8');                                               
+                            rej(_)
                         }
+
+                        stdout.on('data', (chunk: Uint8Array) => chunks.push(chunk))
+                        stdout.on('end', () => {                        
+                            const _ = Buffer.concat(chunks).toString('utf8');                            
+                            res([job, _]);                        
+                        });
+        
                     })
                 })
             })
             .catch(e => {
-                rej(`Job manager error : ${e}`)
+                rej(`Connection error : ${e}`)
             })
         })
     }

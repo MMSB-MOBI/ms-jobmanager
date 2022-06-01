@@ -114,14 +114,14 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
     const stderrStream = stderrStreamOverride ? stderrStreamOverride : job.stderr();
     ss(job.socket).on(`${job.id}:stdout`, function (stream:WriteStream) {
         stdoutStream.then((_stdout) => {
-            logger.info(`${job.id} Pumping stdout [${job.id}:stdout]`);
+            logger.debug(`${job.id} Pumping stdout [${job.id}:stdout]`);
             //logger.warn(`stdoutStream expected ${util.format(_stdout)}`);
             _stdout.pipe(stream);
         });
     });
     ss(job.socket).on(`${job.id}:stderr`, function (stream:WriteStream) {
         stderrStream.then((_stderr) => {
-            logger.silly(`${job.id} Pumping stderr [${job.id}:stderr]`);
+            logger.debug(`${job.id} Pumping stderr [${job.id}:stderr]`);
             //logger.warn(`stderrStream expected ${util.format(_stderr)}`);
             _stderr.pipe(stream);
         });

@@ -10,13 +10,14 @@ Additional execution environments for the server instance can be added by simply
 
 A typical client environment can be an express server or a nest application (see:// nest application repo).
 
-### Installation
+## Installation
 
 ```sh
 npm install ms-jobmanager
 ```
 
-### Client-side
+## Client-side
+
 You just need to import the client library.
 
 ```javascript
@@ -43,16 +44,12 @@ It is often more convenient to make this initial connection through the async/aw
 ```javascript
 import jmClient from 'ms-jobmanager'
 
-(async() => {
-
-    try {
-        await jmClient.start('localhost', 1234);
-        console.log("connection successfull")
-    } catch(e) {
-        console.error(e);
-    }
-
-})();
+try {
+    await jmClient.start('localhost', 1234);
+    console.log("connection successfull")
+} catch(e) {
+    console.error(e);
+}
 ```
 
 #### Submitting commands to the job manager
@@ -63,15 +60,15 @@ Both submission make use of the `push` client method.
 SHELL script are submitted by specifiying their paths.
 
 ```javascript
-    const script = "/path/to/my/script.sh" 
-    const stdout = await jmClient.push({ script });
+const script = "/path/to/my/script.sh" 
+const stdout = await jmClient.push({ script });
 ```
 
 SHELL command lines are submitted as plain strings.
 
 ```javascript
-    const cmd = "hello world"
-    const stdout = await jmClient.push({ cmd });
+const cmd = "hello world"
+const stdout = await jmClient.push({ cmd });
 ```
 
 ##### Setting the job execution
@@ -83,14 +80,14 @@ The client `push` method accepts a single object arguments. This *job-options* o
 * `exportVar`, a litteral of key/value pairs of environment variables to be exported in the execution SHELL of the job, where keys are symbols and values, well, values. For instance, `{"x" : 2}`  would be identical to `export x=2` within the script itself.* 
 
 ```javascript
-    const cmd = "echo I am $age years old!"
-    const exportVar = { age : 10 }
-    const stdout = await jmClient.push({ cmd, exportVar }); 
-    console.log(stdout)//I am 10 years old!
+const cmd = "echo I am $age years old!"
+const exportVar = { age : 10 }
+const stdout = await jmClient.push({ cmd, exportVar }); 
+console.log(stdout)//I am 10 years old!
 ```
 
 As you can see, you have a direct access to the job standard output upon its completion.
-If you need more access to the final state of your job working folder, you can use [File System variant of the push method](#Accessing job results folder).
+If you need more access to the final state of your job working folder, you should use the [File System version of the push method](#Accessing).
 
 ##### Settting the job inputs
 
@@ -100,21 +97,21 @@ It is important to note that **all provided files will be cached under the input
 Files can be passed directly as a list, in which case their basename will be preserved.
 
 ```javascript
-    const cmd = "cat input/nice_file.txt"
-    const inputs = ['/path/to/my/file/nice_file.txt']
-    const stdout = await jmClient.push({ cmd, inputs }); 
-    console.log(stdout)// the content of 'nice_file.txt'
+const cmd = "cat input/nice_file.txt"
+const inputs = ['/path/to/my/file/nice_file.txt']
+const stdout = await jmClient.push({ cmd, inputs }); 
+console.log(stdout)// the content of 'nice_file.txt'
 ```
 
 Or key/value pairs, in which case values are valid paths and keys the name under which files should be copied into the job work folder.
 
 ```javascript
-    const cmd = "cat input/alt_name.txt"
-    const inputs = { alt_name.txt : '/path/to/my/file/nice_file.txt'}
-    const stdout = await jmClient.push({ cmd, inputs }); 
-    console.log(stdout)// the content of the original 'nice_file.txt'
+const cmd = "cat input/alt_name.txt"
+const inputs = { alt_name.txt : '/path/to/my/file/nice_file.txt'}
+const stdout = await jmClient.push({ cmd, inputs }); 
+console.log(stdout)// the content of the original 'nice_file.txt'
 ```
- 
+
 #### Accessing job results folder
 
 The client `pushFS` method allows to inspect a job work folder to list its content or read its files.
@@ -125,15 +122,41 @@ It will return an object which can be destructured to get in addition to the sta
 * `readToString(filepath:string)`, which returns a string of the content of the desired file
 
 ```javascript
-    const cmd = 'echo "ready to" > beam_up.txt; echo "hello";'
-    const { stdout, jobFS } = await jmClient.pushFS({ cmd }); 
-    console.log(stdout)// "hello"
-    const fileContent = await jobFS.readToString('beam_up.txt');
-    console.log(fileContent)// "ready to"
+const cmd = 'echo "ready to" > beam_up.txt; echo "hello";'
+const { stdout, jobFS } = await jmClient.pushFS({ cmd }); 
+console.log(stdout)// "hello"
+const fileContent = await jobFS.readToString('beam_up.txt');
+console.log(fileContent)// "ready to"
 ```
 
-### Server-side
+#### Job error managment
 
-TO DO
+Any content over the standard error stream of a job will set this job on error state and throw an exception.
 
-###### Additional exemples can be found under the (example folder)[]
+```javascript
+const cmd = 'it_is_not a valid command';
+try {
+    const stdout = await jmClient.push({ cmd }); 
+} catch (e) {
+    console.error(e);//it_is_not: command not found
+}
+```
+
+You must therefore make sure that **no sub-program writes to the standard error** or else redirect it.
+
+## Server-side
+
+#### Starting server
+
+#### Configuration file
+
+
+#### Adding job profile
+
+
+#### Adding engine
+
+
+
+## Additional exemples can be found under the [example folder]('https://github.com/MMSB-MOBI/ms-jobmanager/tree/master/src/examples)
+![alt text](./assets/takenoko.jpeg "Have a seat & relax")

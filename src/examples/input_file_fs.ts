@@ -14,11 +14,11 @@ const TCPip = "127.0.0.1";
     try {
         await jmClient.start(TCPip, port);       
         const { stdout, jobFS }  = await jmClient.pushFS({ script, inputs });
-        logger.info(`Job standard output :: ${stdout}`);
-        logger.info("Accessing output folder items");
+        console.log(`Job standard output :: ${stdout}`);
+        console.log("Accessing output folder items");
         const items = await jobFS.list();
-        logger.info( items );      
+        console.log( `${items.join('\n\t-')}`);      
     } catch(e) {
-        logger.error(e);
+        console.error(e);
     }
 })().then( ()=> process.exit());
