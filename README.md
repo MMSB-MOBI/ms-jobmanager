@@ -87,7 +87,7 @@ console.log(stdout)//I am 10 years old!
 ```
 
 As you can see, you have a direct access to the job standard output upon its completion.
-If you need more access to the final state of your job working folder, you should use the [File System version of the push method](#Accessing).
+If you need more access to the final state of your job working folder, you should use the [pushFS](#Accessing job results folder) method.
 
 ##### Settting the job inputs
 
