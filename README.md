@@ -106,7 +106,7 @@ Files can be passed directly as a list, in which case their basename will be pre
     console.log(stdout)// the content of 'nice_file.txt'
 ```
 
-Or key/value pairs, in which case values are valid paths and keys the name under which files should be copied in the job work folder.
+Or key/value pairs, in which case values are valid paths and keys the name under which files should be copied into the job work folder.
 
 ```javascript
     const cmd = "cat input/alt_name.txt"
@@ -120,9 +120,9 @@ Or key/value pairs, in which case values are valid paths and keys the name under
 The client `pushFS` method allows to inspect a job work folder to list its content or read its files.
 It will return an object which can be destructured to get in addition to the standard output of the job, a *JobFileSystem* object with the following methods:
 
-* list(path?:string), which takes an optional relative path and returns a the content of the job folder as a list of strings;
-* readToStream(filepath:string), which returns a readable stream of the desired file
-* readToString(filepath:string), which returns a string of the content of the sdesired file
+* `list(path?:string)`, which takes an optional relative path and returns a the content of the job folder as a list of strings;
+* `readToStream(filepath:string)`, which returns a readable stream from the desired file
+* `readToString(filepath:string)`, which returns a string of the content of the desired file
 
 ```javascript
     const cmd = 'echo "ready to" > beam_up.txt; echo "hello";'
