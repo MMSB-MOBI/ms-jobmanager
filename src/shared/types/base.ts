@@ -74,11 +74,8 @@ export function isStringToStringOrStreamRecord (obj: any): obj is Record<string,
 
 export interface InputDataSocket { [s: string] : ReadStream|string; }
 export function isInputDataSocket(obj:any): obj is InputDataSocket {
-    
-    console.error("#### JE TESTE" + uFormat(obj));
     if (! (obj instanceof Object))
         return false;
-    console.error("#### JE TESTE");
     for(const [key, value] of Object.entries(obj)) {
         if(typeof(key) != 'string') return false;
         if( !(value instanceof ReadStream) && typeof(value) != 'string') 
@@ -108,7 +105,7 @@ export function isArrayOfString(obj:any): obj is string[] {
             return false
     }
 
-    return false;
+    return true;
 }
 
 

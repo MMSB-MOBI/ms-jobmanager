@@ -135,7 +135,7 @@ async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, nspJobSocket:Socket):
     logger.debug(`newJob Packet arrived w/ ${uFormat(jobOptProxy)}`);
     logger.silly(` Memory size vs nWorker :: ${liveMemory.size()} <<>> ${nWorker}`);
     if (liveMemory.size("notBound") >= nWorker) {
-        logger.debug("must refuse packet, max pool size reached");
+        logger.warn("must refuse packet, max pool size reached");
         bouncer(jobID, nspJobSocket);
         return;
         // No early exit yet
@@ -220,6 +220,7 @@ function _push(jobOpt:JobOpt):Job {
                 });
             });
     });
+
     return newJob;
 }
 /* USED ONLY IN SINGLERUNTIME JOBMANAGER --> MAYBE DEPREDCATED ?

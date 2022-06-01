@@ -6,7 +6,7 @@ import { InputDataSocket} from '../../../shared/types/base';
 import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, isReadableOrString} from '../base';
 import { Path, isReadableOrPath } from '../base';
 
-export type JobOptInputs = InputDataSocket|string[]|Record<string, Readable> | JobInputs;
+export type JobOptInputs = InputDataSocket|string[]|Record<string, string|Readable> | JobInputs;
 export interface JobOptBase {     
     cmd? : string,
     exportVar? : Record<string, string|number>    
@@ -56,7 +56,7 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
                 jobOptBase[key] = value;
         if (key == 'inputs')
             if(!isValidJobOptInputs(value))
-                typeLogError(key, 'InputDataSocket|string[]|JobInputs', value);
+                typeLogError(key, 'InputDataSocket|string[]|JobInputs|Record<string, string|Readable>', value);
             else
                 jobOptBase[key] = value;
         if (key == 'exportVar')

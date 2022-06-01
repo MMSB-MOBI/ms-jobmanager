@@ -5,6 +5,7 @@ import { Readable } from 'stream';
 import uuidv4 = require('uuid/v4');
 import { JobOptBase } from './jobopt_model';
 import { format as uFormat } from 'util';
+import { isArrayOfString, isStreamOrStringMap } from '../base';
 
 /* Mother class for Job  and JobProxy */
 export class JobBase extends EventEmitter implements JobOptBase{
@@ -35,8 +36,9 @@ export class JobBase extends EventEmitter implements JobOptBase{
             this.namespace = jobOpt.namespace;
         if('exportVar' in jobOpt)
             this.exportVar = jobOpt.exportVar;
-        logger.debug("job base inputs are "  +  uFormat(jobOpt.inputs));       
-        this.inputs = new JobInputs(jobOpt.inputs);
+        logger.debug("job base inputs are "  +  uFormat(jobOpt.inputs));
+        
+            this.inputs = new JobInputs(jobOpt.inputs);
     }
 
     pprint():string {

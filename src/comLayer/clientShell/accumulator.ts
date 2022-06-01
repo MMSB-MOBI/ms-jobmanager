@@ -5,7 +5,7 @@ import { uuid } from '../../shared/types/base';
 import { ServerStatus } from '../../shared/types/common'
 import { logger } from '../../logger';
 import { format as uFormat} from 'util';
-import { Writable } from 'stream';
+import { Writable, Readable } from 'stream';
 import { io, Socket } from "socket.io-client";
 const ss = require('socket.io-stream');
 import { JobSerial } from '../../shared/types/server'
@@ -74,13 +74,13 @@ export class JobAccumulator extends EventEmitter {
                 // if a cmd is passed we make it a stream and assign it to script
                 //const data = jobWrap.data;
                 
-                const jobOpt = buildStreams(_jobOpt, job); // 1st arg carries data to server, 2nd arg register events
+                const jobOpt = buildStreams(_jobOpt, job); 
                 logger.debug(`jobOpt passed to socket w/ id ${job.id}:\n${uFormat(jobOpt)}`);
                 //ss(this.socket, {}).on(job.id + '/script', (stream:Writable) => { jobOpt.script.pipe(stream); });
-                ss(job.socket, {}).on(job.id + '/script', (stream:Writable) => { jobOpt.script.pipe(stream); });
+                ss(job.socket, {}).on('script', (stream:Writable) => { jobOpt.script.pipe(stream); });
                 for (let inputEvent in jobOpt.inputs)
                   //  ss(this.socket, {}).on(job.id + '/' + inputEvent, (stream:Writable) => {
-                    ss(job.socket, {}).on(job.id + '/' + inputEvent, (stream:Writable) => {
+                    ss(job.socket, {}).on('input_streams/' + inputEvent, (stream:Writable) => {
                         jobOpt.inputs[inputEvent].pipe(stream);
                     });
                 logger.silly(`EMITTING THIS ORIGINAL ${job.id}\n${uFormat(jobOpt)}`);
@@ -89,7 +89,7 @@ export class JobAccumulator extends EventEmitter {
                 logger.silly(`EMITTING THIS RESUB ${jobWrap.job.id}\n${uFormat(jobWrap.jobOpt)}`);
             }
             jobWrap.status = 'sent';
-          
+            logger.debug("newJob attempt at " + job.id);
            job.socket.emit('newjob', jobWrap.job.id, jobWrap.jobOpt);
         });
         return p as Promise<string>;
@@ -185,7 +185,7 @@ export class JobAccumulator extends EventEmitter {
         let self = this;
         nspJobSocket.on('bounced', (jobID:uuid) => {
             logger.silly(`Client : socket on bounced`)
-            logger.debug(`Job ${jobID} was bounced !`);
+            logger.warn(`Job ${jobID} was bounced !`);
             self.jobsPromisesReject[jobID]({ 'type': 'bouncing', jobID });
         });
         nspJobSocket.on('granted', (jobID) => {
@@ -345,13 +345,19 @@ export class JobAccumulator extends EventEmitter {
 }
 
 function buildStreams(data:any, job:JobProxy) {
-    logger.debug(`-->${uFormat(data)}`);
-    //let jobInput = new jobLib.jobInputs(data.inputs);
+    logger.debug(`Building streams from ${uFormat(data)}`);
     let jobInput = job.inputs;
-    // Register error here at stream creation fail
 
+    const setScriptStream = ():Readable => {
+        if(data.script)
+            return createReadStream(data.script);
+        const _ = new Readable();
+        _.push(data.cmd);
+        _.push(null);
+        return _;
+    };
     const sMap:SourcesMap = {
-        script: createReadStream(data.script),
+        script: setScriptStream(),
         inputs: undefined
     }
     sMap.script.on('error', function () {
@@ -365,9 +371,7 @@ function buildStreams(data:any, job:JobProxy) {
     sMap.inputs = jobInput.getStreamsMap();
     data.script = sMap.script;
     data.inputs = sMap.inputs;
-    /* logger.debug("streams buildt");
-     logger.debug(typeof (sMap.script));
-     logger.debug(`${uFormat(sMap.script)}`);*/
+  
     return data;
 }
 /*

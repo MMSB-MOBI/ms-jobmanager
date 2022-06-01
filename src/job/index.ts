@@ -223,7 +223,7 @@ export class Job extends JobBase implements JobOpt  {
             return;
         }
         
-        this.inputs.write(`${this.workDir}/input`)
+        this.inputs.write(`${this.workDir}/input`) // RESUME HERE TO REMOVE FILE NAME DUMP IN BATHC HEADER
         .on('OK', ()=> {
             let self = this;
             let fname = this.workDir + '/' + this.id + '.batch';
@@ -431,13 +431,14 @@ function batchDumper(job: Job) {
             batchContentString += key + '="' + job.exportVar[key] + '"\n';
         }
     }
-
+    
+    /* We turn off filename as variable, @ZEN_GARDEN
     if (job.inputs) {
         for (var key in job.inputs.paths) {
             batchContentString += key + '="' + job.inputs.paths[key] + '"\n';
         }
     }
-
+    */
     if (job.modules) {
         job.modules.forEach(function(e) {
             batchContentString += "module load " + e + '\n';

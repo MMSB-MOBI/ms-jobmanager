@@ -217,11 +217,11 @@ export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket
                 //logger.debug(`-->${filePath}`);
                 remoteData.inputs[inputSymbol] = ss.createStream();
                 logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
-                ss(socket).emit(`${socketNamespace}/${inputSymbol}`, remoteData.inputs[inputSymbol]);
+                ss(socket).emit(`input_streams/${inputSymbol}`, remoteData.inputs[inputSymbol]);
                 //logger.warn('IeDump from' +  socketNamespace + "/" + inputSymbol);
                 //newData.inputs[inputSymbol].pipe(process.stdout)
             }
-            ss(socket).emit(socketNamespace + "/script", remoteData.script);
+            ss(socket).emit("script", remoteData.script);
            
             //logger.error(`TOTOT2\n${util.format(newData)}`);
            /* for (let k in data) {

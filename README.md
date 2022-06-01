@@ -1,5 +1,5 @@
 # MOBI JobManager
-## June2022 @ZEN release
+## June2022 @ZenGarden release
 
 ![alt text](./assets/ryoanji.png "Have a seat & relax")
 
@@ -30,7 +30,7 @@ As a first step, we will just load the library and try to connect with a running
 For initial connection puroposes, the client API exposes the Promise-resolved `start` function.
 
 
-
+```javascript
 jmClient.start('localhost', 1234)
     .then( ()=> console.log("connection successfull"))
     .catch( (e)=> console.error(e));
@@ -46,31 +46,94 @@ import jmClient from 'ms-jobmanager'
 (async() => {
 
     try {
-        await = jmClient.start('localhost', 1234)
+        await jmClient.start('localhost', 1234);
+        console.log("connection successfull")
     } catch(e) {
-        logger.error(e);
+        console.error(e);
     }
 
 })();
 ```
 
+#### Submitting commands to the job manager
 
+##### Basic submissions
+The client interface supports two kinds of command submissions: SHELL script or command line.
+Both submission make use of the `push` client method.
+SHELL script are submitted by specifiying their paths.
 
-#### Local script file
+```javascript
+    const script = "/path/to/my/script.sh" 
+    const stdout = await jmClient.push({ script });
+```
 
-#### Script configuration and variables
+SHELL command lines are submitted as plain strings.
 
-link to jobopt interface
+```javascript
+    const cmd = "hello world"
+    const stdout = await jmClient.push({ cmd });
+```
 
-special case for inputs, example needed
+##### Setting the job execution
 
-#### Submit your script
+The client `push` method accepts a single object arguments. This *job-options* object provides usefull controls over the job execution environment. Its most usefull properties are the following:
 
+* `script`, a valid path to the script to execute
+* `cmd`, a valid shell set of commands [eg : "echo hello; echo world"]
+* `exportVar`, a litteral of key/value pairs of environment variables to be exported in the execution SHELL of the job, where keys are symbols and values, well, values. For instance, `{"x" : 2}`  would be identical to `export x=2` within the script itself.* 
 
-#### Obtain job results
+```javascript
+    const cmd = "echo I am $age years old!"
+    const exportVar = { age : 10 }
+    const stdout = await jmClient.push({ cmd, exportVar }); 
+    console.log(stdout)//I am 10 years old!
+```
+
+As you can see, you have a direct access to the job standard output upon its completion.
+If you need more access to the final state of your job working folder, you can use [File System variant of the push method](#Accessing job results folder).
+
+##### Settting the job inputs
+
+If environnement variables are not enough to feed your jobs, files can be provided to through the *job-options* `inputs` field.
+It is important to note that **all provided files will be cached under the input folder in the working folder of your job**.
+
+Files can be passed directly as a list, in which case their basename will be preserved.
+
+```javascript
+    const cmd = "cat input/nice_file.txt"
+    const inputs = ['/path/to/my/file/nice_file.txt']
+    const stdout = await jmClient.push({ cmd, inputs }); 
+    console.log(stdout)// the content of 'nice_file.txt'
+```
+
+Or key/value pairs, in which case values are valid paths and keys the name under which files should be copied in the job work folder.
+
+```javascript
+    const cmd = "cat input/alt_name.txt"
+    const inputs = { alt_name.txt : '/path/to/my/file/nice_file.txt'}
+    const stdout = await jmClient.push({ cmd, inputs }); 
+    console.log(stdout)// the content of the original 'nice_file.txt'
+```
+ 
+#### Accessing job results folder
+
+The client `pushFS` method allows to inspect a job work folder to list its content or read its files.
+It will return an object which can be destructured to get in addition to the standard output of the job, a *JobFileSystem* object with the following methods:
+
+* list(path?:string), which takes an optional relative path and returns a the content of the job folder as a list of strings;
+* readToStream(filepath:string), which returns a readable stream of the desired file
+* readToString(filepath:string), which returns a string of the content of the sdesired file
+
+```javascript
+    const cmd = 'echo "ready to" > beam_up.txt; echo "hello";'
+    const { stdout, jobFS } = await jmClient.pushFS({ cmd }); 
+    console.log(stdout)// "hello"
+    const fileContent = await jobFS.readToString('beam_up.txt');
+    console.log(fileContent)// "ready to"
+```
 
 ### Server-side
 
-* Latest Stable Release
-* msjob-manager as promise is required for simple end-user
-* no job FS interface
+TO DO
+
+###### Additional exemples can be found under the (example folder)[]

@@ -1,93 +1,78 @@
 import { EventEmitter } from "events"; 
 import { Readable } from 'stream'
-import { isStreamOrStringMap } from '../shared/types/base';
+import { isStreamOrStringMap, isArrayOfString } from '../shared/types/base';
 import { format as uFormat} from 'util';
 import { logger } from '../logger';
 const isStream = require('is-stream');
 import { stat as fsStat, lstatSync, createReadStream, createWriteStream } from 'fs';
 import { basename } from  'path';
 import { createHash } from 'crypto';
+import { JobOptInputs } from '../shared/types/common/jobopt_model';
 
 export class JobInputs extends EventEmitter {
     streams:Record<string, Readable> = {}
     paths:Record<string, string>     = {}
     hashes:Record<string, string>    = {}
 
-    hashable:boolean=false;
-
+    hashable:boolean = false;
+    onError:boolean  = false;
 
     /* Constructor can receive a map w/ two types of value
         Should be SYNC-like
     */
-    constructor(data?:{}|any[]/*, skip?:boolean*/){
+    constructor(data?:JobOptInputs/*Record<string, string|Readable>|string[]*//*, skip?:boolean*/){
         super();
         
-        let safeNameInput:boolean = true;
+        //let safeNameInput:boolean = true;
         
-        if(!data)
+        if(!data) {
+            logger.debug("Passed data to JobInput constructor is empty");
             return;
-        
-        
-        let buffer:any = {};
-        // Coherce array in litteral, autogenerate keys
-        if (data.constructor === Array){
-            safeNameInput = false;
-            let a = <Array<any>>data;
-            for (let e of a.entries())
-                buffer[`file${e[0]}`] = e[1];
-            console.log("???" + uFormat(buffer));
-        } else {
-            buffer = data;
         }
-        if (!isStreamOrStringMap(buffer))
-            throw(`Wrong format for ${uFormat(buffer)}`);
-        let nTotal = Object.keys(buffer).length;
-        logger.debug(`jobInput constructed w/ ${nTotal} items:\n${uFormat(buffer)}`);
+        
+        let buffer:Record<string, string|Readable> = {}
+        
+
+        if (data.constructor === Array){
+            if(data.length == 0)
+                return;
+            if(!isArrayOfString(data) ) {
+                logger.error(`Array of inputs must be strings (plain or filepath)`);
+                this.onError = true;
+                return;
+            }
+            const _:Record<string, string> = {};
+            data.forEach( (item) => {
+                const k   = basename(item);
+                buffer[k] = item;
+            });
+        } else
+            buffer = { ...data as Record<string, string|Readable> } 
+      
+        const nInputs = Object.keys(buffer).length;
+        logger.debug(`jobInput constructed w/ ${nInputs} items:\n${uFormat(buffer)}`);
 
         let self = this;
         for (let key in buffer) {
+            logger.debug(`Browing JobInput key ${key}`);
             if( isStream(buffer[key]) )
                 this.streams[key] = <Readable>buffer[key];
             else {
-                try{
-                    //if (!safeNameInput) throw('file naming is unsafe');
-                    let datum:string = <string>buffer[key];
-                    console.log(">>>" + datum);
-                    lstatSync(datum).isFile();
-                    let k = basename(datum);//.replace(/\.[^/.]+$/, ""); 
-                    logger.debug(`key ${k} extracted from ${datum}`);
-                    //k = key; // GL Aug2018, HOTFIX from taskobject, maybe will break JM -- MS side let'see
-                    this.streams[k] = createReadStream(datum);
-                    logger.debug(`${buffer[key]} is a file, stream assigned to ${k}`);
-
+                try{                   
+                    const datum:string = <string>buffer[key];
+                    lstatSync(datum).isFile();                   
+                    this.streams[key] = createReadStream(datum);
                 } catch(e) {
-                    logger.warn(`Provided input named ${key} is not a file, assuming a string`);                    
-                  // Handle error
-                    if((e as any).code == 'ENOENT'){
-                    //no such file or directory
-                    //do something
-                    } else {
-                    //do something else
-                    }
-                    this.streams[key] = new Readable();
-                  
-                    this.streams[key].push(<string>buffer[key]);
-                    this.streams[key].push(null);
-                    
-                   // this.streams[key].on('data',(e)=>{ logger.error(`${e.toString()}`); });
-                    
-                    // Following block works as intended
-                  /*  let toto:any = new streamLib.Readable();
-                    toto.push(<string>buffer[key]);
-                    toto.push(null);
-                    toto.on('data',(e)=>{ logger.error(`${e.toString()}`); });*/
-                    //
+                    logger.error(`Provided input named ${key} is not a file:\n${e}`);        
+                    this.onError = true;
+                    return;
                }
-            }
+            }            
             this.streams[key].on('error', (e:string) => {
                 self.emit('streamReadError', e);
             });
-        }      
+        }
+        logger.debug("JobInputs constructed");
     }
     // Access from client side to wrap in socketIO
     getStreamsMap():Record<string, Readable>|undefined {
@@ -122,7 +107,9 @@ export class JobInputs extends EventEmitter {
                         reject('path error');
                         return;
                     }
-                    let path = `${location}/${tuple[0]}.inp`;
+                    //let path = `${location}/${tuple[0]}.inp`;
+                    const path = `${location}/${tuple[0]}`;
+                    
                     let target = createWriteStream(path);
                     target.on('error', (msg:string) => {
                         logger.error(`Failed to open write stream ${msg}`);
