@@ -87,7 +87,7 @@ console.log(stdout)//I am 10 years old!
 ```
 
 As you can see, you have a direct access to the job standard output upon its completion.
-If you need more access to the final state of your job working folder, you should use the [pushFS](#Accessing job results folder) method.
+If you need more access to the final state of your job working folder, you should use the [pushFS](#Accessing_job_results_folder) method.
 
 ##### Settting the job inputs
 
@@ -112,7 +112,7 @@ const stdout = await jmClient.push({ cmd, inputs });
 console.log(stdout)// the content of the original 'nice_file.txt'
 ```
 
-#### Accessing job results folder
+#### Accessing_job_results_folder
 
 The client `pushFS` method allows to inspect a job work folder to list its content or read its files.
 It will return an object which can be destructured to get in addition to the standard output of the job, a *JobFileSystem* object with the following methods:
