@@ -55,29 +55,28 @@ try {
 #### Submitting commands to the job manager
 
 ##### Basic submissions
-The client interface supports two kinds of command submissions: SHELL script or command line.
-Both submission make use of the `push` client method.
-SHELL script are submitted by specifiying their paths.
+The client interface exposes a `push` method which supports two types of command submissions.
+* **SHELL scripts** are submitted by specifiying their paths.
 
 ```javascript
 const script = "/path/to/my/script.sh" 
 const stdout = await jmClient.push({ script });
 ```
 
-SHELL command lines are submitted as plain strings.
+* **SHELL command lines** are submitted as plain strings.
 
 ```javascript
-const cmd = "hello world"
+const cmd = "echo hello; echo world"
 const stdout = await jmClient.push({ cmd });
 ```
 
-##### Setting the job execution
+##### Settings for the job execution
 
-The client `push` method accepts a single object arguments. This *job-options* object provides usefull controls over the job execution environment. Its most usefull properties are the following:
+The client `push` method accepts a single object argument. This *job-options* object provides usefull controls over the job execution environment. Its most usefull properties are the following:
 
 * `script`, a valid path to the script to execute
-* `cmd`, a valid shell set of commands [eg : "echo hello; echo world"]
-* `exportVar`, a litteral of key/value pairs of environment variables to be exported in the execution SHELL of the job, where keys are symbols and values, well, values. For instance, `{"x" : 2}`  would be identical to `export x=2` within the script itself.* 
+* `cmd`, a valid line of shell commands
+* `exportVar`, a litteral of key/value pairs of environment variables to be exported in the execution SHELL of the job, where keys are symbols and values, well, values. For instance, `{"x" : 2}`  would be identical to `export x=2` within the script itself. 
 
 ```javascript
 const cmd = "echo I am $age years old!"
@@ -103,7 +102,7 @@ const stdout = await jmClient.push({ cmd, inputs });
 console.log(stdout)// the content of 'nice_file.txt'
 ```
 
-Or key/value pairs, in which case values are valid paths and keys the name under which files should be copied into the job work folder.
+If input files need to be renamed, they can be passed as key/value pairs, in which case values are valid source paths and keys the name under which files should be copied into the job work folder.
 
 ```javascript
 const cmd = "cat input/alt_name.txt"
