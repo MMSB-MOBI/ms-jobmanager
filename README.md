@@ -157,5 +157,5 @@ You must therefore make sure that **no sub-program writes to the standard error*
 
 
 
-## Additional exemples can be found under the [example folder]('https://github.com/MMSB-MOBI/ms-jobmanager/tree/master/src/examples)
+## Additional examples can be found under the [example folder]('https://github.com/MMSB-MOBI/ms-jobmanager/tree/master/src/examples)
 ![alt text](./assets/takenoko.jpeg "Have a seat & relax")
