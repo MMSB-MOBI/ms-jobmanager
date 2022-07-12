@@ -5,7 +5,7 @@
 
 ## Push, Have a Tea and Relax
 
-Ths jobmanager ecosystem allows for the submission of SHELL script or commands from a client JavaScript runtime to a remote server JavaScript program. The server handles to scheduling of jobs by converting them to POSIX threads or by passing them to a SLURM process. The client exposes a simple push API with asynchronous access to the results of the job. Under the hood, client/server communication uses the stream socket-io API.
+The jobmanager ecosystem allows for the submission of SHELL script or commands from a client JavaScript runtime to a remote server JavaScript program. The server handles to scheduling of jobs by converting them to POSIX threads or by passing them to a SLURM process. The client exposes a simple push API with asynchronous access to the results of the job. Under the hood, client/server communication uses the stream socket-io API.
 Additional execution environments for the server instance can be added by simply implementing engine contract.
 
 A typical client environment can be an express server or a nest application (see:// nest application repo).
