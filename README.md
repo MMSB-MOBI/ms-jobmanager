@@ -27,8 +27,8 @@ import jmClient from 'ms-jobmanager'
 It will provide you with a NodeJS Singleton client object.
 
 #### Connect to a server instance
-As a first step, we will just load the library and try to connect with a running server instance.
-For initial connection puroposes, the client API exposes the Promise-resolved `start` function.
+As a first step, we will just load the library and try to connect to a running server instance.
+To handle these initial connection steps, the client API exposes the Promise-resolved `start` function.
 
 
 ```javascript
