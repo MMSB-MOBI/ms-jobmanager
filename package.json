@@ -1,6 +1,6 @@
 {
   "name": "ms-jobmanager",
-  "version": "2.3.3",
+  "version": "3.0.0",
   "description": "A micro-service to handle job instanciation and submission ",
   "main": "build/client.js",
   "scripts": {
@@ -26,7 +26,6 @@
     "@types/mkdirp": "^0.5.2",
     "@types/node-dir": "0.0.32",
     "@types/uuid": "^3.4.3",
-    "async": "^2.6.0",
     "commander": "^2.15.1",
     "copyfiles": "^2.4.1",
     "date-and-time": "^0.6.2",
