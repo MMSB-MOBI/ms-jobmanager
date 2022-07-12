@@ -146,7 +146,10 @@ You must therefore make sure that **no sub-program writes to the standard error*
 ## Server-side
 
 #### Starting server
-
+Running a POSIX thread instance of the job-manager server with the **emulate** engine flag, here we specify a maximum number of 2 submitted jobs.
+```sh
+node build/bin/startServer.js -c [PATH TO FOLDER CACHE] -e emulate -n 2
+```
 #### Configuration file
 
 
