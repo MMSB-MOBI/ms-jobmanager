@@ -113,7 +113,7 @@ console.log(stdout)// the content of the original 'nice_file.txt'
 
 #### Accessing_job_results_folder
 
-The client `pushFS` method allows to inspect a job work folder to list its content or read its files.
+The client `pushFS` method allows for the inspection of a job work folder, to list its content or read its files.
 It will return an object which can be destructured to get in addition to the standard output of the job, a *JobFileSystem* object with the following methods:
 
 * `list(path?:string)`, which takes an optional relative path and returns a the content of the job folder as a list of strings;
