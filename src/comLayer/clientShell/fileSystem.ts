@@ -31,7 +31,7 @@ export class JobFileSystem {
      }
      async list(path?:Path):Promise<string[]> {
         return new Promise( (res, rej) => {
-            this.socket.emit('list', path ?? './', (folder_items:string[]) => res(folder_items) );
+            this.socket.emit('list', path ?? '*', (folder_items:string[]) => res(folder_items) );
         });
         /*
         

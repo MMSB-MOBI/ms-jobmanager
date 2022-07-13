@@ -17,6 +17,7 @@ import { Readable } from 'stream';
 import { JobBase } from '../shared/types/common/job_model';
 import { socketPull } from '../comLayer/serverShell';
 import { Socket as SocketServer } from 'socket.io'
+import { find } from 'glob-spwan';
 /* The jobObject behaves like an emitter
  * Emitter exposes following event:
  *          'lostJob', {Object}jobObject : any job not found in the process pool
@@ -122,21 +123,11 @@ export class Job extends JobBase implements JobOpt  {
         logger.info(`Overidding default engine for ${this.engine.specs} w/ settings ${sysSettingsKey}`);
         this.engine.setSysProfile(sysSettingsKey);
     }
-    
-    async list(path?:Path):Promise<string[]> {
-        /* job API for through socket results file access  */
-        const workDirContent:string[] = []
-        const jobID = this.id;
-        logger.info(`Listing !! in ${this.workDir}`);
-       
-        return new Promise ( (resolve, reject) => {
-
-            readdir(this.workDir, (err, files) => {
-                if (err)
-                    reject(err);
-                resolve(files);
-            }); 
-        });
+    // search for FS items, w/ the glob-spawn package
+    async list(pattern:Path):Promise<string[]> {
+        logger.debug(`Listing !! in ${this.workDir} w/ ${pattern}`);
+        const files = await find(pattern, { cwd: this.workDir });
+        return files;
     }
     async read(relativePath:Path):Promise<ReadStream>{
         //const subPath = relativePath ?? '';
