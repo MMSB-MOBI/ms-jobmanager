@@ -38,7 +38,7 @@ export class JobBase extends EventEmitter implements JobOptBase{
             this.exportVar = jobOpt.exportVar;
         logger.debug("job base inputs are "  +  uFormat(jobOpt.inputs));
         
-            this.inputs = new JobInputs(jobOpt.inputs);
+        this.inputs = new JobInputs(jobOpt.inputs);
     }
 
     pprint():string {

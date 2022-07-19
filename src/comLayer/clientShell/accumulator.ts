@@ -205,8 +205,7 @@ export class JobAccumulator extends EventEmitter {
             
             jRef.emit('lostJob', jRef);
             self.deleteJob(jobSerial.id);
-        });
-        //  *          'listError, {String}error) : the engine failed to list process along with error message
+        });      
 
         nspJobSocket.on('fsFatalError', (msg, err, jobID) => {
             logger.silly(`Client : socket on fsFatalError`)
@@ -253,8 +252,7 @@ export class JobAccumulator extends EventEmitter {
         });
         nspJobSocket.on('disconnect', () => {
             logger.debug(`job nsp socket ${jobID} disconnect`);
-        });
-        //socket.on('centralStatus', (d) => { this.JMstatus = d.status; });
+        });       
         return new Promise ( (res, rej) => {
             nspJobSocket.on('registred', () => {
                 logger.debug(`${job_nsp} registred`);
@@ -262,86 +260,6 @@ export class JobAccumulator extends EventEmitter {
             });
         });
     }
-    
-   /* _bind(socket:Socket) {
-        logger.debug("Binding accumulator to socket");
-        this.socket = socket;
-        socket.on('jobStart', (data) => {
-            logger.silly(`Client : socket on jobStart`)
-            // Maybe do smtg
-            // data = JSON.parse(data);
-        });
-        let self = this;
-        socket.on('bounced', (jobID:uuid) => {
-            logger.silly(`Client : socket on bounced`)
-            logger.debug(`Job ${jobID} was bounced !`);
-            self.jobsPromisesReject[jobID]({ 'type': 'bouncing', jobID });
-        });
-        socket.on('granted', (jobID) => {
-            logger.silly(`Client : socket on granted`)
-            logger.debug(`Job ${jobID} was granted !`);
-            self.jobsPromisesResolve[jobID](jobID);
-        });
-        socket.on('lostJob', (_jobSerial:string) => {
-            logger.silly(`Client : socket on lostJob`)
-            const jobSerial:JobSerial = JSON.parse(_jobSerial)
-            logger.error(`lostJob ${jobSerial.id}`)
-            let jRef = this.getJobObject(jobSerial.id);
-            if (!jRef){
-                return;
-            }
-            logger.error(`Following job not found in the process pool ${jRef.id}`);
-            
-            jRef.emit('lostJob', jRef);
-            self.deleteJob(jobSerial.id);
-        });
-        //  *          'listError, {String}error) : the engine failed to list process along with error message
-
-        socket.on('fsFatalError', (msg, err, jobID) => {
-            logger.silly(`Client : socket on fsFatalError`)
-            let jRef = this.getJobObject(jobID);
-            if (!jRef)
-                return;
-            jRef.emit('fsFatalError', msg, err, jRef);
-            self.deleteJob(jobID);
-        });
-        ['scriptSetPermissionError', 'scriptWriteError', 'scriptReadError', 'inputError'].forEach((eName) => {
-            socket.on(eName, (err, jobSerial) => {
-                logger.fatal(`socket.on error ${err} ${uFormat(jobSerial)}`)
-                let jRef = this.getJobObject(jobSerial.id);
-                if (!jRef)
-                    return;
-                jRef.emit(eName, err, jRef);
-                self.deleteJob(jobSerial.id);
-            });
-        });
-        ['submitted', 'ready'].forEach((eName) => {
-            socket.on(eName, (_jobSerial) => {
-                const jobSerial = JSON.parse(_jobSerial)
-                let jRef = this.getJobObject(jobSerial.id);
-                if (!jRef)
-                    return;
-                jRef.emit('ready');
-            });
-        });
-        socket.on('completed', (jobSerial:JobSerial) => {
-            logger.debug(`pulling Object : ${uFormat(jobSerial)}`);
-            const jobObject = this.flush(jobSerial.id);
-            if (!jobObject)
-                return;
-            logger.debug('completed event on socket');
-            logger.silly(`${uFormat(jobObject)}`);
-            jobObject.stdout = ss.createStream();
-            jobObject.stderr = ss.createStream();
-            logger.debug(`Pulling for ${jobObject.id}:stdout`);
-            logger.debug(`Pulling for ${jobObject.id}:stderr`);
-            ss(socket).emit(`${jobObject.id}:stdout`, jobObject.stdout);
-            ss(socket).emit(`${jobObject.id}:stderr`, jobObject.stderr);
-            jobObject.emit('completed', jobObject.stdout, jobObject.stderr, jobObject);
-
-        });
-        //socket.on('centralStatus', (d) => { this.JMstatus = d.status; });
-    }*/
 }
 
 function buildStreams(data:any, job:JobProxy) {

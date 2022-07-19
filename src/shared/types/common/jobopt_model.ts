@@ -5,6 +5,7 @@ import { InputDataSocket} from '../../../shared/types/base';
  
 import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, isReadableOrString} from '../base';
 import { Path, isReadableOrPath } from '../base';
+import { JobOptError } from '../../../errors/client';
 
 export type JobOptInputs = InputDataSocket|string[]|Record<string, string|Readable> | JobInputs;
 export interface JobOptBase {     
@@ -20,11 +21,11 @@ export interface JobOptBase {
     ttl? : number
     inputs? : JobOptInputs, /* Cover all possible types in inherited interface, should be "abstracted" */
 }
-
+/* Moved to errors
 const typeLogError = (varName:string, eType:string, varValue:any):void => {
     logger.error(`jobOpt property ${varName} of value ${varValue} is not of type ${eType}`);
 };
-
+*/
 // Code duplication across Factory and TypeGuard
 // Factorization by callback function may cause TS inference pb
 
@@ -51,27 +52,32 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
             key == 'namespace' || key == 'sysSettingsKey'
             ) 
             if (typeof(value) != 'string')
-                typeLogError(key, 'string', value);
+                //typeLogError(key, 'string', value);
+                throw(new JobOptError(key, 'string', value));
             else
                 jobOptBase[key] = value;
         if (key == 'inputs')
             if(!isValidJobOptInputs(value))
-                typeLogError(key, 'InputDataSocket|string[]|JobInputs|Record<string, string|Readable>', value);
+                //typeLogError(key, 'InputDataSocket|string[]|JobInputs|Record<string, string|Readable>', value);
+                throw(new JobOptError(key, 'InputDataSocket|string[]|JobInputs|Record<string, Path|Readable>', value));    
             else
                 jobOptBase[key] = value;
         if (key == 'exportVar')
             if(!isRecordOfStringToStringOrNumber(value))
-                typeLogError(key, 'Record<string, string|number>', value);
+                throw ( new JobOptError(key, 'Record<string, string|number>', value) )
+                //typeLogError(key, 'Record<string, string|number>', value);
             else
                 jobOptBase[key] = value;
         if (key == 'modules')
             if(!isArrayOfString(value))
-                typeLogError(key, 'string[]', value);
+                throw ( new JobOptError(key, 'string[]', value) )
+                //typeLogError(key, 'string[]', value);
             else
                 jobOptBase[key] = value;
         if(key == 'script')
             if(!isReadableOrPath(value))
-                typeLogError(key, 'Readable|Path', value);
+                throw ( new JobOptError(key, 'Readable|Path', value) )
+                //typeLogError(key, 'Readable|Path', value);
             else
                 jobOptBase[key] = value;
     }
@@ -89,27 +95,27 @@ export function isJobOptBase(data:any): data is JobOptBase {
             key == 'namespace' || key == 'sysSettingsKey'
             ) 
             if (typeof(value) != 'string') {
-                typeLogError(key, 'string', value);
+                //typeLogError(key, 'string', value);
                 return false;
             }
         if (key == 'inputs')
             if(!isValidJobOptInputs(value)) {
-                typeLogError(key, 'InputDataSocket|string[]|JobInputs', value);
+                //typeLogError(key, 'InputDataSocket|string[]|JobInputs', value);
                 return false;
             }
         if (key == 'exportVar')
             if(!isRecordOfStringToStringOrNumber(value)) {
-                typeLogError(key, 'Record<string, string|number>', value);
+                //typeLogError(key, 'Record<string, string|number>', value);
                 return false;
             }
         if (key == 'modules')
             if(!isArrayOfString(value)) {
-                typeLogError(key, 'string[]', value);
+                //typeLogError(key, 'string[]', value);
                 return false;
             }
         if(key == 'script')
             if(!isReadableOrString(value)) {
-                typeLogError(key, 'Readable|string', value);
+                //typeLogError(key, 'Readable|string', value);
                 return false;
             }
     }

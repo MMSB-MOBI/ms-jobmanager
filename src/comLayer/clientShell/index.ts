@@ -8,7 +8,7 @@ import { logger } from '../../logger';
 import { uuid } from '../../shared/types/base';
 import { JobAccumulator } from './accumulator';
 import { JobFileSystem } from './fileSystem';
-
+import {ConnectionError} from '../../errors/client';
 export class ClientShell {
     acc:JobAccumulator;
     mainSocket?:Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -34,7 +34,8 @@ export class ClientShell {
                 resolve(statusEmitter);
             })
             this.mainSocket.on("connect_error", (err) => {
-                reject("socket connection error")
+                //console.error("socket connection error")
+                reject(new ConnectionError("socket connection error", this.TCPip, this.port))
             });
             this.mainSocket.on("disconnect", () => {
                 this.acc.abortAll(); 
@@ -45,8 +46,8 @@ export class ClientShell {
     async push(data:any):Promise<JobProxy> {
         const jobOpt = JobOptClientFactory(data);
         logger.debug(`Passing following data to jobProxy constructor\n${uFormat(jobOpt)}`);
-        const job = await this.acc.appendToQueue(/*data,*/ jobOpt);
-        return job;
+        const job = await this.acc.appendToQueue(jobOpt);
+        return job;    
     }
 
     get_socket():Socket|undefined {
@@ -55,6 +56,10 @@ export class ClientShell {
 
     createFS(job:JobProxy):JobFileSystem {
         return new JobFileSystem(job); // TO ADAPT
+    }
+
+    disconnect():void{
+        this.mainSocket?.disconnect();
     }
 }
 

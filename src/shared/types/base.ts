@@ -72,14 +72,15 @@ export function isStringToStringOrStreamRecord (obj: any): obj is Record<string,
     return true;
 }
 
-export interface InputDataSocket { [s: string] : ReadStream|string; }
+
+
+export interface InputDataSocket { [s: string] : ReadStream|Path; }
 export function isInputDataSocket(obj:any): obj is InputDataSocket {
     if (! (obj instanceof Object))
         return false;
     for(const [key, value] of Object.entries(obj)) {
         if(typeof(key) != 'string') return false;
-        if( !(value instanceof ReadStream) && typeof(value) != 'string') 
-            return false;
+        if(!isReadableOrPath(value)) return false;
     }
     return true;
 }
