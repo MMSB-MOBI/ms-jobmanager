@@ -1,11 +1,9 @@
 import jmClient from '../client';
 import { logger, setLogLevel } from '../logger';
-import { Readable } from 'stream';
 
-setLogLevel("info");
-logger.warn("Testing various errors managments");
+console.warn("Testing various errors managments");
 const script = `${__dirname}/data/process_input_file.sh`
-logger.info(`using following shell script as template ${script}`);
+console.log(`using following shell script as template ${script}`);
 const port = 2020;
 const TCPip = "127.0.0.1";
 
@@ -15,17 +13,23 @@ const TCPip = "127.0.0.1";
        
         try {     
             console.log("Testin input error") 
-            const stdout_never  = await jmClient.push({ script, inputs: {'my_input_file.pipo': ''} });  
+            const _  = await jmClient.push({ script, inputs: {'my_input_file.pipo': ''} });  
         } catch(e) {          
-            console.log(e); 
+            console.error(e); 
         }
         try {    
             console.log("Testing script error")  
-            const stdout_never  = await jmClient.push({ script:'./idonot/exist'});  
+            const _  = await jmClient.push({ script:'./idonot/exist'});  
         } catch(e) {          
-            console.log(e); 
+            console.error(e); 
+        }
+        try {    
+            console.log("Testing stderr content error");  
+            const _  = await jmClient.push({ cmd:'>&2 echo "Please Help !!!!"'});  
+        } catch(e) {          
+            console.error((e as Error).message); 
         }
     } catch(e) {
-        console.log(e);
+        console.error(e);
     }
 })().then( ()=> process.exit())

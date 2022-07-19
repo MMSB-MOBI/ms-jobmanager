@@ -1,10 +1,8 @@
 import jmClient from '../client';
-import { logger, setLogLevel } from '../logger';
 
-setLogLevel("info");
-logger.info("Exceeding worker pool size example");
+console.log("Exceeding worker pool size example");
 const cmd = `sleep 5; echo command $my_value output`;
-logger.info(`using following shell cmd as template ${cmd}`);
+console.log(`using following shell cmd as template ${cmd}`);
 const port = 2020;
 const TCPip = "127.0.0.1";
 const job_num = 20;
@@ -16,12 +14,12 @@ const job_num = 20;
             return jmClient.push({ cmd, exportVar } )
         });
         Promise.all(_).then((stdouts:string[])=> {
-            stdouts.forEach((stdout, i) => logger.info(`stdout of job ${i}:: ${stdout}`));
-            logger.info("exiting");
+            stdouts.forEach((stdout, i) => console.log(`stdout of job ${i}:: ${stdout}`));
+            console.log("exiting");
             process.exit()
         });
     
     } catch(e) {
-        logger.error(e);
+        console.error(e);
     }
 })();

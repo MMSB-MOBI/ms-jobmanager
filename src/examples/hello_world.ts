@@ -1,12 +1,13 @@
 import jmClient from '../client';
-import { logger, setLogLevel } from '../logger';
 
-setLogLevel("info");
-logger.warn("Basic usage");
+console.warn("Basic usage");
 const script = `${__dirname}/data/hello.sh`
-const cmd = "echo hello world !"
-logger.info(`using following shell script as template ${script}`);
+
+console.log(`using following script as template ${script}`);
 const exportVar = { "sleepTime" : "5" };
+
+const cmd = "sleep $sleepTime; echo hello world !"
+console.log(`using following shell command template ${cmd}`);
 
 const port = 2020;
 const TCPip = "127.0.0.1";
@@ -21,6 +22,6 @@ const TCPip = "127.0.0.1";
         console.log(`Job command standard output:: ${stdout2}`);
 
     } catch(e) {
-        console.error(`Unable to process job ${e}`);
+        console.error(e);
     }
 })().then( ()=> process.exit())

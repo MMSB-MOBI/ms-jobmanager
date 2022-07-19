@@ -1,5 +1,6 @@
 import {inspect} from 'util';
 import { JobOptProxy, JobProxy } from '../shared/types/client';
+import { Readable } from 'stream';
 
 export class ConnectionError extends Error {
     TCP:string;
@@ -10,7 +11,7 @@ export class ConnectionError extends Error {
         this.TCP  = TCP
         this.port = port
         this.name = "ConnectionError";
-        Error.captureStackTrace(this, ConnectionError);
+        //Error.captureStackTrace(this, ConnectionError);
     }
 }
 
@@ -18,7 +19,7 @@ export class StartConnectionError extends ConnectionError {
     constructor(TCP:string, port:number) {
         super(`Unable to connect at ${TCP}:${port}`, TCP, port);
         this.name = "StartConnectionError";
-        Error.captureStackTrace(this, StartConnectionError);
+        //Error.captureStackTrace(this, StartConnectionError);
     }
 }
 
@@ -26,7 +27,7 @@ export class PushConnectionLostError extends ConnectionError {
     constructor(TCP:string, port:number) {
         super(`Connection lost before pushing job at ${TCP}:${port}`, TCP, port);
         this.name = "PushConnectionLostError";
-        Error.captureStackTrace(this, PushConnectionLostError);
+        //Error.captureStackTrace(this, PushConnectionLostError);
     }
 }
 
@@ -35,7 +36,7 @@ export class JobConnectionLostError extends ConnectionError {
         super(`Connection lost before pushing job at ${TCP}:${port}`, TCP, port);
         this.name = "JobConnectionLostError";
         this.message = `${id}::${this.message}`;
-        Error.captureStackTrace(this, JobConnectionLostError);
+        //Error.captureStackTrace(this, JobConnectionLostError);
     }
 }
 
@@ -43,7 +44,7 @@ export class JobOptError extends Error {
     constructor(varName:string, eType:string, varValue:any) {
         super(`jobOpt property ${varName} of value ${inspect(varValue)} is not of type ${eType}`);
         this.name = 'JobOptError';
-        Error.captureStackTrace(this, JobOptError);
+        //Error.captureStackTrace(this, JobOptError);
     }
 }
 
@@ -55,7 +56,15 @@ export class JobError extends Error {
         this.id = id;
         this.message = `${this.id}::${message}`;
         this.name = "JobError";
-        Error.captureStackTrace(this, JobError);
+        //Error.captureStackTrace(this, JobError);
+    }
+}
+
+export class JobStderrNotEmpty extends JobError {
+    constructor(stderr:string, id:string) {
+        super(stderr, id);
+        this.name = "JobStderrNotEmpty";
+        //Job//Error.captureStackTrace(this, JobStderrNotEmpty);
     }
 }
 
@@ -64,7 +73,7 @@ export class ScriptError extends JobError {
         super(message, id);
     
         this.name = "ScriptError";
-        Error.captureStackTrace(this, ScriptError);
+        //Error.captureStackTrace(this, ScriptError);
     }
 }
 
@@ -73,7 +82,7 @@ export class RemoteScriptError extends JobError {
         super(message, id);
     
         this.name = "RemoteScriptError";
-        Error.captureStackTrace(this, RemoteScriptError);
+        //Error.captureStackTrace(this, RemoteScriptError);
     }
 }
 
@@ -82,7 +91,7 @@ export class RemoteInputError extends JobError {
         super(message, id);
     
         this.name = "RemoteInputError";
-        Error.captureStackTrace(this, RemoteInputError);
+        //Error.captureStackTrace(this, RemoteInputError);
     }
 }
 
@@ -91,7 +100,7 @@ export class RemoteFileSystemError extends JobError {
         super(`${message} ${error} data:${inspect(data)}`, id);
     
         this.name = "RemoteFileSystemError";
-        Error.captureStackTrace(this, RemoteFileSystemError);
+        //Error.captureStackTrace(this, RemoteFileSystemError);
     }
 }
 
@@ -99,6 +108,26 @@ export class LostJobError extends JobError {
     constructor(id:string, data:JobOptProxy) {
         super(`data : ${inspect(data)}`, id);
         this.name = "LostJobError"; 
-        Error.captureStackTrace(this, LostJobError);
+        //Error.captureStackTrace(this, LostJobError);
+    }
+}
+
+/* JobFS errors */
+export class JobErrorFS extends Error {
+    id:string;
+    constructor(message:string, id:string) {
+        super();
+        this.id = id;
+        this.message = `${this.id}::${message}`;
+        this.name = "JobErrorFS";
+        //Error.captureStackTrace(this, JobError);
+    }
+}
+
+export class ReadErrorFS extends JobErrorFS {   
+    constructor(content:any, id:string) {
+        super(`data : ${inspect(content)}`, id);
+        this.name = "ReadErrorFS"; 
+        Error.captureStackTrace(this, ReadErrorFS);
     }
 }

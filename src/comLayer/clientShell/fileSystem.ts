@@ -5,7 +5,7 @@ import { ClientToServerEvents, ServerToClientEvents, responseFS} from '../../lib
 const ss = require('socket.io-stream');
 import { format as uFormat} from 'util';
 import { JobProxy } from '../../shared/types/client'
-
+import { ReadErrorFS } from '../../errors/client';
 const streamToString = async (stream:Readable):Promise<string> => {
     const chunks: Uint8Array[] = [];
     return new Promise ( (res, rej) => { 
@@ -62,7 +62,8 @@ export class JobFileSystem {
                      ss(this.socket).emit('fsRead', netStream, {name:fileName});             
                      res(netStream);
                  } else {
-                     rej(uFormat({ jobID : this.job.id, message: response.content}));
+                    rej(new ReadErrorFS(response.content, this.job.id))
+                    // rej(uFormat({ jobID : this.job.id, message: response.content}));
                  }
  //// emit is readable
                });

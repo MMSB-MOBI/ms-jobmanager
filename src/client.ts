@@ -8,7 +8,7 @@ import { logger, setLogLevel } from './logger';
 import { format as uFormat } from 'util';
 import {ConnectionError, StartConnectionError, 
         RemoteFileSystemError, PushConnectionLostError, 
-        ScriptError, RemoteScriptError,
+        ScriptError, RemoteScriptError,JobStderrNotEmpty,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 
@@ -129,9 +129,10 @@ class JmClient {
                         stderr.on('end', () => {
                             if (errchunks.length > 0) {                          
                                 const _ = Buffer.concat(errchunks).toString('utf8');                                               
-                                rej(_)
+                                rej( new JobStderrNotEmpty(_, job.id) );
+                                return;
                             }
-
+                        
                             stdout.on('data', (chunk: Uint8Array) => chunks.push(chunk))
                             stdout.on('end', () => {                        
                                 const _ = Buffer.concat(chunks).toString('utf8');                            

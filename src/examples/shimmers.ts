@@ -1,10 +1,7 @@
 
 import jmClient from '../client';
-import { Readable } from 'stream';
-import { logger, setLogLevel } from '../logger';
 
-setLogLevel("info");
-logger.warn("Testing simultaneous resolution of identical jobs");
+console.warn("Testing simultaneous resolution of identical jobs");
 const script = `${__dirname}/data/hello.sh`
 console.log(script);
 const exportVar = { "sleepTime" : "10" };
@@ -23,9 +20,9 @@ B/C submitted jobs identical to already running ones are bound to the first/genu
         [1000,3000,6000].map((t,i) => {
             
             setTimeout( ()=> {
-                logger.info(`Submitting job number ${i} delayed by ${t}`);
+                console.log(`Submitting job number ${i} delayed by ${t}`);
                 jmClient.push({ script, exportVar })
-                    .then( (stdout:string)=> logger.info(`job number ${i} stdout:${stdout}`) );
+                    .then( (stdout:string)=> console.log(`job number ${i} stdout:${stdout}`) );
                 //logger.info("Waiting for a while ...")
             }, t);
         });

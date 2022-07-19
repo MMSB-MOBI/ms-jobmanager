@@ -1,9 +1,8 @@
 import jmClient from '../client';
-import { logger, setLogLevel } from '../logger';
-setLogLevel("info");
-logger.warn("Testing the  FS to string interface over various cases");
+
+console.warn("Testing the  FS to string interface over various cases");
 const script = `${__dirname}/data/hello.sh`
-logger.info(`using following shell script as template ${script}`);
+console.log(`using following shell script as template ${script}`);
 const exportVar = { "sleepTime" : "5" };
 
 const port = 2020;
@@ -31,6 +30,7 @@ const TCPip = "127.0.0.1";
         const _ =  await jobFS.readToString("this/is/not/a/file");
 
     } catch(e) {
+        console.log("Error caught");
         console.error(e);
     }
 
