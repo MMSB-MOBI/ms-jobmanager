@@ -106,7 +106,20 @@ If input files need to be renamed, they can be passed as key/value pairs, in whi
 
 ```javascript
 const cmd = "cat input/alt_name.txt"
-const inputs = { alt_name.txt : '/path/to/my/file/nice_file.txt'}
+const inputs = { 'alt_name.txt' : '/path/to/my/file/nice_file.txt'}
+const stdout = await jmClient.push({ cmd, inputs }); 
+console.log(stdout)// the content of the original 'nice_file.txt'
+```
+The inputs can also be a stream instead of a file path.  
+
+```javascript
+const cmd = "cat input/alt_name.txt"
+
+const my_stream:Readable = new Readable(); //Create a Stream
+my_stream.push('random string'); //Fill with your string
+my_stream.push(null); //Close it 
+
+const inputs = { 'alt_name.txt' : my_stream}
 const stdout = await jmClient.push({ cmd, inputs }); 
 console.log(stdout)// the content of the original 'nice_file.txt'
 ```
