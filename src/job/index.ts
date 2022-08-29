@@ -124,9 +124,12 @@ export class Job extends JobBase implements JobOpt  {
         this.engine.setSysProfile(sysSettingsKey);
     }
     // search for FS items, w/ the glob-spawn package
-    async list(pattern:Path):Promise<string[]> {
+    async list(pattern:Path, relative : boolean):Promise<string[]> {
         logger.debug(`Listing !! in ${this.workDir} w/ ${pattern}`);
         const files = await find(pattern, { cwd: this.workDir });
+        if(relative){
+            return files.map(f => this.workDir + "/" + f)
+        }
         return files;
     }
     async read(relativePath:Path):Promise<ReadStream>{

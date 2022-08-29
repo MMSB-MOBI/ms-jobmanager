@@ -132,10 +132,10 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
     //const jobSocket:SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents> = jobObject.socket;
     const jobSocket = job.socket;
 
-    jobSocket.on("list", (path:string, callback) => { 
+    jobSocket.on("list", (path, relative, callback) => { 
         logger.debug(`job ${job.id} is handling a list request`)
         //logger.info(`List request received for job ${jobID}`)
-        job.list(path).then( (list_items)=> {
+        job.list(path, relative).then( (list_items)=> {
             //job.socket.emit(`${job.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
             callback(list_items);
         });

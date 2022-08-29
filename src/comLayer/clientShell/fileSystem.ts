@@ -29,9 +29,9 @@ export class JobFileSystem {
         this.job = job;
         this.socket = job.socket;
      }
-     async list(path?:Path):Promise<string[]> {
+     async list(path?:Path, relative?:boolean):Promise<string[]> {
         return new Promise( (res, rej) => {
-            this.socket.emit('list', path ?? '*', (folder_items:string[]) => res(folder_items) );
+            this.socket.emit('list', path ?? "*", relative ?? false, (folder_items:string[]) => res(folder_items) );
         });
         /*
         
