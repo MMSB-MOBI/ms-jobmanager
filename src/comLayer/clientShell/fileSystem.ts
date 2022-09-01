@@ -61,19 +61,22 @@ export class JobFileSystem {
         return new Promise( async (res, rej)=> {
 
             const chunksArray: Uint8Array[] = [];
-
-            const netStream = await this._read(fileName); // manage error on name here
-            netStream.on('data', (chunk: Uint8Array) => {
+            try {
+                const netStream = await this._read(fileName); // manage error on name here
+                netStream.on('data', (chunk: Uint8Array) => {
                // logger.info("HOUHOU " + chunk.toString());
-                chunksArray.push(chunk);
-            });
-            netStream.on('end', ()=> {
+                    chunksArray.push(chunk);
+                });
+                netStream.on('end', ()=> {
                 //logger.info('CLOSED !!');
-                const oStream = new Readable();
-                res(oStream);
-                chunksArray.forEach( (chunk)=> oStream.push(chunk));
-                oStream.push(null);
-            });
+                    const oStream = new Readable();
+                    res(oStream);
+                    chunksArray.forEach( (chunk)=> oStream.push(chunk));
+                    oStream.push(null);
+                });
+            } catch(e:any) {
+                rej(e);
+            }
         });
 
         //return netStream as Readable;
@@ -85,16 +88,16 @@ export class JobFileSystem {
          return stdout;
      }
  
-     async _read(fileName:Path):Promise<Readable>{
-         return new Promise( (res, rej) => {
-             // First we check for file status, then we pull stream and resolve/forward it
-             this.socket.emit("isReadable", fileName, (response:responseFS) => {
+    async _read(fileName:Path):Promise<Readable>{
+        return new Promise( (res, rej) => {
+            // First we check for file status, then we pull stream and resolve/forward it
+            this.socket.emit("isReadable", fileName, (response:responseFS) => {
                 if (response.status == "ok") {
                     const netStream = ss.createStream();
                     ss(this.socket).emit('fsRead', netStream, {name:fileName});             
                     res(netStream);
                 } else {
-                rej(new ReadErrorFS(response.content, this.job.id))                    
+                    rej(new ReadErrorFS(response.content, this.job.id))                    
                 }
             });
         });    
