@@ -278,8 +278,7 @@ function _storeAndEmit(jid:string, status?:string) {
     if (job) {
         liveMemory.removeJob({ jid });
         if(liveMemory.size("notBound") < nWorker)
-            openBar();
-        console.log("----->---->" + jid);
+            openBar();       
         job.jEmit("completed", job);
 
         const serialJob:JobSerial = job.getSerialIdentity(); 

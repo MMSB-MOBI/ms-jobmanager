@@ -25,10 +25,8 @@ export function transformProxyToJobOpt( jobID:uuid,
 
     const { engine, emulator, internalIP, internalPort, cache, socket } = joSpec;
    
-    const jo:Partial<JobOpt> =  {
-    
-     };
-    console.log('SSSC' + uFormat(jo.socket));
+    const jo:Partial<JobOpt> = {};
+
     for (let jok of JobOptKeys.filter((k:string) => k != 'inputs')) {
         //@ts-ignore
         jo[jok] = jopx[jok];
@@ -40,7 +38,7 @@ export function transformProxyToJobOpt( jobID:uuid,
     jo.internalPort   = internalPort;
     jo.jobProfile     = jopx.jobProfile ? jopx.jobProfile : "default";
     jo.fromConsumerMS = socket ? true : false;
-    jo.socket         =socket ?? undefined
+    jo.socket         = socket ?? undefined
 
     jo.workDir = `${cache}/${jobID}`;
     if (jopx.namespace || engine.iCache) {       

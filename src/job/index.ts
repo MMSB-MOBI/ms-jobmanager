@@ -88,8 +88,8 @@ export class Job extends JobBase implements JobOpt  {
     constructor( jobOpt:JobOpt,uuid? :string ){
         super(jobOpt, uuid);
         this.socket = jobOpt.socket;
-        console.log("###" + uuid  + "###");
-        logger.debug(`Job Constuctor JobOpt:${jobOpt}`);
+        
+        logger.debug(`Job ${uuid} Constuctor JobOpt:${jobOpt}`);
         this.internalPort = jobOpt.internalPort;
         this.internalIP = jobOpt.internalIP;
         this.workDir = jobOpt.workDir;

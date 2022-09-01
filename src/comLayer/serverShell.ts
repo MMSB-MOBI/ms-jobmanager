@@ -44,7 +44,7 @@ export class SocketRegistry extends EventEmitter {
             logger.debug(`job namespace connection at ${namespace.name}`);
             const guessJobID = namespace.name.replace('/job-', '');
             self.registerJob(nspJobSocket, guessJobID);
-            nspJobSocket.on('newjob', (jobID:uuid, jobOptProxy:JobOptProxy) => {
+            nspJobSocket.on('newjob', (jobID:uuid, jobOptProxy:JobOptProxy) => { 
                 logger.debug("newJobSocket event");
                 assert.equal(guessJobID, jobID);
                 logger.debug(`========\n=============\nnewJobSocket received container:\n${util.format(jobOptProxy)}`);

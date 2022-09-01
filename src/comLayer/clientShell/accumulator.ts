@@ -89,8 +89,8 @@ export class JobAccumulator extends EventEmitter {
                 logger.silly(`EMITTING THIS RESUB ${jobWrap.job.id}\n${uFormat(jobWrap.jobOpt)}`);
             }
             jobWrap.status = 'sent';
-            logger.debug("newJob attempt at " + job.id);
-           job.socket.emit('newjob', jobWrap.job.id, jobWrap.jobOpt);
+            logger.debug(`newJob attempt at ${job.id} passing:\n ${uFormat(jobWrap)}`);
+            job.socket.emit('newjob', jobWrap.job.id, jobWrap.jobOpt);
         });
         return p as Promise<string>;
     }
