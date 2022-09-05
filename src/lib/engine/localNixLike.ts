@@ -4,7 +4,7 @@ import { logger } from '../../logger.js';
 import { EngineInterface, EngineSpecs, EngineListData } from './index';
 import { profileInterface } from './profiles/index';
 import { Job } from '../../job';
-import profiles from './profiles/localNixLike'
+import {profiles, engineSys} from './profiles/localNixLike'
 import { lookup, psData } from './ps';
 
 import {defaultGetPreprocessorString as getPreprocessorString} from './profiles';
@@ -16,12 +16,31 @@ let localProfiles:profileInterface = profiles;
 export class nixLikeEngine implements EngineInterface {
     submitBin:string  = '/bin/bash';
     specs:EngineSpecs ='emulate';
+    iCache?:string;
     constructor() {
 
     }
     /* GL 2020/15/06  dirty hack, not intended, for now, to be used in nixLike context only slurm */
-    setSysProfile(a:string) {
+    setSysProfile(sysKeyProfile:string) {
         logger.info("nixLike Engine setSysProfile call");
+        if (!engineSys.definitions.hasOwnProperty(sysKeyProfile)) {
+            logger.error(`No such sysProfile {sysKeyProfile}`);
+            return;
+        }
+        const sysSettings:any = engineSys.definitions;
+       /* 
+        this.submitBin = sysSettings[sysKeyProfile].binaries.submitBin;
+        this.queueBin  = sysSettings[sysKeyProfile].binaries.queueBin;
+        this.cancelBin = sysSettings[sysKeyProfile].binaries.cancelBin;      
+        */
+        if ( sysSettings[sysKeyProfile].hasOwnProperty('iCache') ) {
+            this.iCache = sysSettings[sysKeyProfile].iCache;
+        }
+            /*         if ( sysSettings[sysKeyProfile].hasOwnProperty('execUser') ) {
+                this.execUser = sysSettings[sysKeyProfile].execUser;
+            }
+            */
+        //}
      }
     generateHeader (jobID:string, jobProfileKey:string|undefined):string {
 

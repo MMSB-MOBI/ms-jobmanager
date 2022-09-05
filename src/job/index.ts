@@ -93,11 +93,8 @@ export class Job extends JobBase implements JobOpt  {
         this.internalPort = jobOpt.internalPort;
         this.internalIP = jobOpt.internalIP;
         this.workDir = jobOpt.workDir;
-        //logger.info() 
         this.script = jobOpt.script;
-        //const completeProfile = jobOpt.jobProfile === "default" ? undefined : getSlurmProfile(jobOpt.jobProfile)
-        //this.execUser = completeProfile ? completeProfile.execUser : undefined
-        
+       
         if ('emulated' in jobOpt)
             this.emulated = jobOpt.emulated;
      
@@ -112,16 +109,16 @@ export class Job extends JobBase implements JobOpt  {
         this.engine =  jobOpt.engine;
         if (! ("sysSettingsKey" in jobOpt) )
             return;
-        logger.debug(`sysSettingsKey in jobOpt ${jobOpt.sysSettingsKey}`);
         // Job specific engine
         const sysSettingsKey = jobOpt['sysSettingsKey'];
         if(!sysSettingsKey) {
-            logger.error("Undefined value for sysSettings of job engine, using default engine");
+            logger.warn("Undefined value for sysSettings of job engine, using default engine");
             return;
         }
         this.engine = getEngine(this.engine.specs);
-        logger.info(`Overidding default engine for ${this.engine.specs} w/ settings ${sysSettingsKey}`);
+        logger.debug(`Overriding default engine for ${this.engine.specs} w/ settings ${sysSettingsKey}`);
         this.engine.setSysProfile(sysSettingsKey);
+        console.log(`A job was buildt w/ following jobOpt:\n${uFormat(jobOpt)}` )
     }
     // search for FS items, w/ the glob-spawn package
     async list(pattern:Path):Promise<string[]> {
@@ -130,9 +127,8 @@ export class Job extends JobBase implements JobOpt  {
         return files;
     }
     async read(relativePath:Path):Promise<ReadStream>{
-        //const subPath = relativePath ?? '';
         const path = `${this.workDir}/${relativePath}`
-        logger.info(`reading fs from ${path}`)
+        logger.debug(`reading fs from ${path}`)
         return new Promise ( (resolve, reject) => {
             const readStream = createReadStream(path);
             readStream.on('open', () => resolve(readStream));
@@ -164,7 +160,7 @@ export class Job extends JobBase implements JobOpt  {
         let self = this;
         mkdirp(`${this.workDir}/input`, function(err) {
             if (err) {                
-                var msg = 'failed to create job w/ ID ' + self.id + ' directory, ' + err;
+                const msg = 'failed to create job w/ ID ' + self.id + ' directory, ' + err;
                 logger.error(msg);
                 self.emit('folderCreationError', msg, err, self);
                 return;
@@ -251,7 +247,8 @@ export class Job extends JobBase implements JobOpt  {
         //logger.info(uFormat(this))
         logger.debug(`job submitting w/, ${this.engine.submitBin} ${submitArgArray}`);
         ///logger.debug(`workdir : > ${this.workDir} <`);
-        logger.info(`execUser : ${this.engine.execUser}`); 
+        if (this.engine.execUser)
+            logger.info(`execUser : ${this.engine.execUser}`); 
         const cmd = this.engine.execUser ? 'sudo' : this.engine.submitBin
         const args = this.engine.execUser ? ['-u', this.engine.execUser, this.engine.submitBin, fname] : [fname]
         logger.info(`execute : > ${cmd} ${args}`)

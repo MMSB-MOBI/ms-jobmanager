@@ -1,12 +1,15 @@
-import { Readable, Transform } from 'stream';
+import { Readable, Transform, Writable } from 'stream';
 import { Path } from '../../shared/types/base';
 import { Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents, responseFS} from '../../lib/socket-management/interfaces';
 const ss = require('socket.io-stream');
 import { format as uFormat} from 'util';
 import { JobProxy } from '../../shared/types/client'
-import { ReadErrorFS } from '../../errors/client';
+import { ReadErrorFS, WriteErrorFS } from '../../errors/client';
 import { logger } from '../../logger';
+import { access, stat, createWriteStream, constants as fsConst } from 'fs';
+import { dirname } from 'path';
+
 const streamToString = async (stream:Readable):Promise<string> => {
     const chunks: Uint8Array[] = [];
     return new Promise ( (res, rej) => { 
@@ -20,9 +23,6 @@ const streamToString = async (stream:Readable):Promise<string> => {
 };
 
 export class JobFileSystem {
-    /* private socket:any;
-     private jobID:string;
-     */
     socket:Socket<ServerToClientEvents, ClientToServerEvents>;
     job:JobProxy;
  
@@ -30,15 +30,47 @@ export class JobFileSystem {
         this.job = job;
         this.socket = job.socket;
      }
-     async list(path?:Path):Promise<string[]> {
+    async list(path?:Path):Promise<string[]> {
         return new Promise( (res, rej) => {
             this.socket.emit('list', path ?? '*', (folder_items:string[]) => res(folder_items) );
         });
-     }
-     
-     async readToStream(fileName:string):Promise<Readable>{
+    }
+    async copy(sourceFileName:string, targetFileName:Path):Promise<void> {
+        await this.checkTargetPath(targetFileName);
+        const sourceStream = await this.readToStream(sourceFileName);
+        const targetStream = createWriteStream(targetFileName);
+        const id = this.job.id;
+        return new Promise ((res,rej)=>{
+            targetStream.on('close', ()=>res());
+            targetStream.on('err'  , ()=>rej(
+                new WriteErrorFS(`Error writing to ${targetFileName}`,id))
+            );
+            sourceStream.pipe(targetStream);
+        });
+    }
+    private async checkTargetPath(targetFileName:string):Promise<void> {
+        return new Promise( async (res, rej)=> {
+            const id = this.job.id;
+            const dirName = dirname(targetFileName); 
+            const _this = this;       
+            access(dirName, fsConst.W_OK, (err) => {
+                if(err) {
+                    rej(new WriteErrorFS(`${dirName} not a writable folder`, id));
+                    return 
+                }
+                stat(targetFileName, function(err, stat) {
+                    if (err.code !== 'ENOENT') {
+                        rej(new WriteErrorFS(`${targetFileName} already exists`, id));
+                        return;
+                    }
+                    res();
+                });                
+            });
+        });
+    }
+    async readToStream(fileName:string):Promise<Readable>{
         
-        // DBG implementation, this works
+        // dummy implementation, this works
         /*
         const netStream = new Readable();
         netStream.push("dummy stream content");
@@ -46,8 +78,7 @@ export class JobFileSystem {
         */
         
         // Previous implementation, does not work
-        //const netStream = await this._read(fileName);
-        
+        //const netStream = await this._read(fileName); 
         // DEBUG, causes stream to be consumed
         /*  const chunks: Uint8Array[] = [];
         netStream.on('data', (chunk: Uint8Array) => chunks.push(chunk))
@@ -58,23 +89,22 @@ export class JobFileSystem {
         netStream.on('error', (err:string) => logger.error(err));
         */
 
+
         return new Promise( async (res, rej)=> {
 
             const chunksArray: Uint8Array[] = [];
             try {
-                const netStream = await this._read(fileName); // manage error on name here
-                netStream.on('data', (chunk: Uint8Array) => {
-               // logger.info("HOUHOU " + chunk.toString());
+                const netStream = await this._read(fileName);
+                    netStream.on('data', (chunk: Uint8Array) => {
                     chunksArray.push(chunk);
                 });
                 netStream.on('end', ()=> {
-                //logger.info('CLOSED !!');
                     const oStream = new Readable();
                     res(oStream);
                     chunksArray.forEach( (chunk)=> oStream.push(chunk));
                     oStream.push(null);
                 });
-            } catch(e:any) {
+            } catch(e) {
                 rej(e);
             }
         });

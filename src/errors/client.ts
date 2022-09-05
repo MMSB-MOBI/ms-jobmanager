@@ -131,3 +131,11 @@ export class ReadErrorFS extends JobErrorFS {
         Error.captureStackTrace(this, ReadErrorFS);
     }
 }
+
+export class WriteErrorFS extends JobErrorFS {   
+    constructor(content:any, id:string) {
+        super(content, id);
+        this.name = "WriteErrorFS"; 
+        Error.captureStackTrace(this, WriteErrorFS);
+    }
+}

@@ -66,9 +66,29 @@ class JmClient {
         return { stdout, jobFS: jobFileInterface }
     }
 
+    async pushManyFS(jobOptArray: JobOptProxy[]):Promise<DatumPushFS[]> {
+        const _ = await this.pushMany(jobOptArray);
+        return _.map( ([job, stdout]) => { return { stdout, jobFS:this._shell.createFS(job)};})
+    }
     async push(jobOpt: JobOptProxy):Promise<string> {       
         const [job, stdout] = await this._push(jobOpt);
         return stdout;
+    }
+
+    async pushMany(jobOptArray: JobOptProxy[]):Promise<string[]> {
+        /*return Promise.all(
+            jobOptArray.map( (jobOpt) => {
+                console.log("Loading one _push over " + uFormat(jobOpt));
+                return this._push(jobOpt);
+            })
+        )*/
+        const _:[JobProxy, string][] = await Promise.all(
+            jobOptArray.map( (jobOpt) => {
+                console.log("Loading one _push over " + uFormat(jobOpt));
+                return this._push(jobOpt);
+            })
+        );
+        return _.map( ([jobProxy, stdout]) => stdout );
     }
 
     async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 

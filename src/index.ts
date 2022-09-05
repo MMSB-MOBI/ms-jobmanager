@@ -162,6 +162,12 @@ function _push(jobOpt:JobOpt):Job {
           // newJob.melt // replace newJob by an already running job
           //                just copying client socket if fromConsumerMS 
 
+    if (newJob.engine.iCache) {       
+        newJob.workDir = cacheDir ? `${cacheDir}/` : "";
+        newJob.workDir += newJob.engine.iCache ? `${newJob.engine.iCache}/` : ""; 
+        newJob.workDir += newJob.id;
+        logger.info(`Redefined job workDir ${newJob.workDir}`);
+    }
     logger.debug(`Following jobObject was successfully buildt \n ${newJob.pprint()}`);
         
 
