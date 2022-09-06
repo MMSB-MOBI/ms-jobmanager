@@ -1,17 +1,14 @@
 import jmClient from '../client';
 
-import {logger, setLogLevel, setLogFile} from '../logger.js';
-//setLogLevel("debug");
-
 console.warn("Riding pipeline");
 
 const port = 2020;
 const TCPip = "127.0.0.1";
 
+console.log("Submitting two jobs and wait for them to complete");
 (async() => {
     try {
         await jmClient.start(TCPip, port);
-        // push many
         const results = await jmClient.pushMany([
             {cmd : 'sleep 1; echo "Job $tag output"',
             exportVar : {tag : "T1"}},
@@ -19,7 +16,7 @@ const TCPip = "127.0.0.1";
             exportVar : {tag : "T2"}},
         ]);
         console.log("Job results arrays:\n");
-        results.forEach((stdout, i)=> {
+        results.forEach((stdout, i)=> {
             console.log(`${i} ==> ${stdout}`)
         });
     } catch(e) {

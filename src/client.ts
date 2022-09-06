@@ -12,7 +12,6 @@ import {ConnectionError, StartConnectionError,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 
-//setLogLevel('debug');
 
 interface DatumPushFS {
     stdout:string,
@@ -60,38 +59,38 @@ class JmClient {
             }
         })
     }
+
+    // Handling of submitted jobs
+    async push(jobOpt: JobOptProxy):Promise<string> {       
+        const [job, stdout] = await this._push(jobOpt);
+        return stdout;
+    }
+    async pushMany(jobOptArray: JobOptProxy[]):Promise<string[]> {
+        const _ = await this._pushMany(jobOptArray)
+        return _.map( ([jobProxy, stdout]) => stdout );
+    }
+
     async pushFS(jobOpt: JobOptProxy): Promise<DatumPushFS>{
         const [job, stdout] = await this._push(jobOpt);
         const jobFileInterface = this._shell.createFS(job);
         return { stdout, jobFS: jobFileInterface }
     }
-
     async pushManyFS(jobOptArray: JobOptProxy[]):Promise<DatumPushFS[]> {
-        const _ = await this.pushMany(jobOptArray);
+        const _ = await this._pushMany(jobOptArray);
         return _.map( ([job, stdout]) => { return { stdout, jobFS:this._shell.createFS(job)};})
     }
-    async push(jobOpt: JobOptProxy):Promise<string> {       
-        const [job, stdout] = await this._push(jobOpt);
-        return stdout;
-    }
-
-    async pushMany(jobOptArray: JobOptProxy[]):Promise<string[]> {
-        /*return Promise.all(
-            jobOptArray.map( (jobOpt) => {
-                console.log("Loading one _push over " + uFormat(jobOpt));
-                return this._push(jobOpt);
-            })
-        )*/
+   
+    private async _pushMany(jobOptArray: JobOptProxy[]):Promise<[JobProxy, string][]> {
         const _:[JobProxy, string][] = await Promise.all(
             jobOptArray.map( (jobOpt) => {
                 console.log("Loading one _push over " + uFormat(jobOpt));
                 return this._push(jobOpt);
             })
         );
-        return _.map( ([jobProxy, stdout]) => stdout );
+        return _;
     }
 
-    async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 
+    private async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 
         logger.debug(`Pushing following ${uFormat(jobOpt)}`);      
         return new Promise((res, rej) => {
             this.start(this.TCPip as string, this.port as number).then(async () => {
@@ -101,44 +100,27 @@ class JmClient {
                         rej(new ScriptError(message, job.id));
                     });
                     job.on("lostJob", (data:JobOptProxy) => {
-                        //console.log("lost job", data);
                         rej(new LostJobError(job.id, data))
-                        //rej(`Error with job ${job.id} : job has been lost`)
                     });
 
                     job.on("fsFatalError", (message: string, error: string, data:JobOptProxy) => { //jobObject
-                        /*console.log("fs fatal error");
-                        console.log("message:", message);
-                        console.log("error:", error);
-                        console.log("data:", data);
-                        rej(`Error with job ${job.id} : fsFatalError`)*/
                         rej(new RemoteFileSystemError(message, error, job.id, data));
                     });
                     job.on("scriptSetPermissionError", (err: string) => {
                         rej( new RemoteScriptError(`(permission problem) ${err}`, job.id) )
                     });
                     job.on("scriptWriteError", (err: string) => {
-                        /*console.error("scriptWriteError", err)
-                        rej(`Error with job ${job.id} : script write error`)*/
                         rej( new RemoteScriptError(`(write error) ${err}`, job.id) )
                     });
                     job.on("scriptReadError", (err: string) => {
-                        rej( new RemoteScriptError(`(read error) ${err}`, job.id) )
-                        /*
-                        console.error("script read error", err);
-                        rej(`Error with job ${job.id} : script read error`)
-                        */
+                        rej( new RemoteScriptError(`(read error) ${err}`, job.id) )                
                     });
                     job.on("inputError", (err: string) => {
                         rej(new RemoteInputError(err, job.id))
-                        /*console.error("input error", err);
-                        rej(`Error with job ${job.id} : input error`)*/
                     });
 
                     job.on("disconnect_error",() => {
                         rej(new JobConnectionLostError(this.TCPip as string, this.port as number, job.id) )
-                       /* console.error("job disconnected")
-                        rej(`Error with job ${job.id} : disconnect error`)*/
                     })
                     /* stderr rej as precedence over stdout res */
                     job.on("completed", (stdout: any, stderr: any) => {

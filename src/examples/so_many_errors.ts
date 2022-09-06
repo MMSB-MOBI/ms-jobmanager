@@ -12,8 +12,17 @@ const TCPip = "127.0.0.1";
         await jmClient.start(TCPip, port);       
        
         try {     
-            console.log("Testin input error") 
-            const _  = await jmClient.push({ script, inputs: {'my_input_file.pipo': ''} });  
+            console.log("Testing command error");
+            const _  = await jmClient.push({ cmd:'not_a_shell_command'});  
+        } catch(e) {          
+            console.error(e); 
+        }
+        try {    
+            console.log("Testing empty input values error");  
+            const _  = await jmClient.push({ 
+                cmd:'echo "ls input/ "',
+                inputs : { "dummy.txt" : ""}
+            });  
         } catch(e) {          
             console.error(e); 
         }
@@ -27,8 +36,9 @@ const TCPip = "127.0.0.1";
             console.log("Testing stderr content error");  
             const _  = await jmClient.push({ cmd:'>&2 echo "Please Help !!!!"'});  
         } catch(e) {          
-            console.error((e as Error).message); 
+            console.error(e); 
         }
+       
     } catch(e) {
         console.error(e);
     }

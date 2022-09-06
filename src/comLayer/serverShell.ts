@@ -25,7 +25,6 @@ import assert from 'assert'
     Trigger create job namespace only once newJob attempt was granted 
 */
 
-
 let socketRegistry:SocketRegistry;
 // Should handle new socket/job pair
 export class SocketRegistry extends EventEmitter {
@@ -62,7 +61,6 @@ export class SocketRegistry extends EventEmitter {
         // Client main NS logic
         this.server.on('connection', (socket:Socket)=> {
             const uuid = this.registerClient(socket);
-            //this.emit('connection'); // for login purposes
             this.emit('clientMainSocketConnection', socket); // concrete socket
             socket.on('newjob',()=> logger.error("OUPSS!!"));
             socket.on('disconnect', function () {
@@ -102,47 +100,38 @@ export function startSocketServer(port:number):SocketRegistry {
     return socketRegistry;
 }
 
-//type socketPullArgs = [Job|JobProxy, Promise<Readable>, Promise<Readable>] | [Job|JobProxy, undefined, undefined];
-
 export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<Readable>, stderrStreamOverride?:Promise<Readable>):void {
     if (stdoutStreamOverride)
         logger.debug(`${job.id} Shimmering Socket job pulling`);
     else
         logger.debug(`${job.id} Genuine socket job pulling`);
-    //  logger.debug(`${util.format(stdout)}`);
+
     const stdoutStream = stdoutStreamOverride ? stdoutStreamOverride : job.stdout();
     const stderrStream = stderrStreamOverride ? stderrStreamOverride : job.stderr();
     ss(job.socket).on(`${job.id}:stdout`, function (stream:WriteStream) {
         stdoutStream.then((_stdout) => {
             logger.debug(`${job.id} Pumping stdout [${job.id}:stdout]`);
-            //logger.warn(`stdoutStream expected ${util.format(_stdout)}`);
             _stdout.pipe(stream);
         });
     });
     ss(job.socket).on(`${job.id}:stderr`, function (stream:WriteStream) {
         stderrStream.then((_stderr) => {
             logger.debug(`${job.id} Pumping stderr [${job.id}:stderr]`);
-            //logger.warn(`stderrStream expected ${util.format(_stderr)}`);
             _stderr.pipe(stream);
         });
     });
 
     if (!job.socket)
         return;
-    //const jobSocket:SocketIOServer<ClientToServerEvents, ServerToClientEvents, InterServerEvents> = jobObject.socket;
     const jobSocket = job.socket;
 
     jobSocket.on("list", (path:string, callback) => { 
         logger.debug(`job ${job.id} is handling a list request`)
-        //logger.info(`List request received for job ${jobID}`)
         job.list(path).then( (list_items)=> {
-            //job.socket.emit(`${job.id}:list`, list_items /*["toto.txt", "tata.txt"]*/);
             callback(list_items);
         });
     });
-    //_SOCKET.on("DoyouMind", ()=> { console.log("I dont mind")});
-    jobSocket.on("DoyouMind", ()=> { console.log("I dont mind")});
-
+    
     jobSocket.on("isReadable", (fileName, callback) => {
        job.access(fileName)
         .then( ()=> {
@@ -155,15 +144,9 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
             } as  responseFS)
         });
     });
-    //ss(_SOCKET).on('fsRead', function(stream, data) {
     ss(jobSocket).on('fsRead', function(stream:WriteStream, data:any) {
-        logger.info(`${job.id} Trying to start pumping fsRead from ${data.name}`);
-           /* const dum_stream = new Readable();
-           
-            dum_stream.push("AAA");
-            dum_stream.push("BBB");
-            dum_stream.push(null);
-            dum_stream.pipe(stream);*/
+        logger.debug(`${job.id} Trying to start pumping fsRead from ${data.name}`);
+
         job.read(data.name).then( (readableStream)=> {
             readableStream.pipe(stream);
             logger.info(`${job.id} Pumping fsRead 2/2`);
@@ -171,29 +154,13 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
 
 
     }); 
-    /*
-    jobObject.socket.on("read", (filename) => {         
-        jobObject.read(filename).then( (readableStream)=>  {
-            const fsStreamToken = 'toto';//`fs_streaming:${filename}`;
-            logger.info(`network stream rdy at ${fsStreamToken}`)
-            ss(jobObject.socket)
-                .on(fsStreamToken, function(network_stream) {
-                    logger.warn(`SOMEONE IS PULLING ${fsStreamToken}`);
-                    //network_stream.pipe(readableStream)
-                    readableStream.pipe(network_stream)
-                 
-                });
-            jobObject.socket.emit(`${filename}:open_success`, fsStreamToken);
-
-        }).catch(e => jobObject.socket.emit(`${filename}:open_error`, e));
-    });*/
-
+ 
     job.socket.emit('completed', job /*JSON.stringify(jobObject)*/);
     // Can be customized w/ toJSON() // method
 }
 
 /*
- For now we dont do much just boreadcasting were overloaded
+ For now we dont do much just broadcasting only the busy status
 */
 export function bouncer(jobID:uuid, socket:Socket) {
     logger.debug(`Bouncing ${jobID}`);
@@ -213,23 +180,12 @@ export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket
                 inputs: {}
             };
             for (let inputSymbol in jobOptProxy.inputs) {
-                //let filePath = data.inputs[inputSymbol];
-                //logger.debug(`-->${filePath}`);
                 remoteData.inputs[inputSymbol] = ss.createStream();
                 logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
                 ss(socket).emit(`input_streams/${inputSymbol}`, remoteData.inputs[inputSymbol]);
-                //logger.warn('IeDump from' +  socketNamespace + "/" + inputSymbol);
-                //newData.inputs[inputSymbol].pipe(process.stdout)
             }
             ss(socket).emit("script", remoteData.script);
            
-            //logger.error(`TOTOT2\n${util.format(newData)}`);
-           /* for (let k in data) {
-                if (k !== 'inputs' && k !== 'script')
-                    newData[k] = data[k];
-            }
-            newData.socket = socket;
-            */
             socket.emit('granted', jobID); // to client TO DO type cahnge and need hinting
             resolve(remoteData);
         }, 250);

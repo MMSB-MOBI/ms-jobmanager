@@ -90,10 +90,10 @@ If you need more access to the final state of your job working folder, you shoul
 
 ##### Settting the job inputs
 
-If environnement variables are not enough to feed your jobs, files can be provided to through the *job-options* `inputs` field.
-It is important to note that **all provided files will be cached under the input folder in the working folder of your job**.
+If environnement variables are not enough to feed your jobs, files can be provided through the *job-options* `inputs` field.
+It is important to note that **all provided files will be cached under the "input/" folder in the working folder of your job**.
 
-Files can be passed directly as a list, in which case their basename will be preserved.
+Files can be passed directly as a list, in which case their basename will be preserved (note the mention of the mandatory "input/" folder in the job command).
 
 ```javascript
 const cmd = "cat input/nice_file.txt"
@@ -110,7 +110,8 @@ const inputs = { 'alt_name.txt' : '/path/to/my/file/nice_file.txt'}
 const stdout = await jmClient.push({ cmd, inputs }); 
 console.log(stdout)// the content of the original 'nice_file.txt'
 ```
-The inputs can also be a stream instead of a file path.  
+
+Inputs can also be provided as stream instead of file path.  
 
 ```javascript
 const cmd = "cat input/alt_name.txt"
@@ -121,7 +122,7 @@ my_stream.push(null); //Close it
 
 const inputs = { 'alt_name.txt' : my_stream}
 const stdout = await jmClient.push({ cmd, inputs }); 
-console.log(stdout)// the content of the original 'nice_file.txt'
+console.log(stdout)// the 'random string' string
 ```
 
 #### Accessing_job_results_folder
@@ -132,13 +133,51 @@ It will return an object which can be destructured to get in addition to the sta
 * `list(path?:string)`, which takes an optional relative path rooted to the job execution folder and returns its content as a list of strings;
 * `readToStream(filepath:string)`, which returns a readable stream from the desired file
 * `readToString(filepath:string)`, which returns a string of the content of the desired file
+* `copy(sourceFileName:string, targetFileName:Path)`, which copies a file from the job working folder to a target location
 
 ```javascript
+
 const cmd = 'echo "ready to" > beam_up.txt; echo "hello";'
 const { stdout, jobFS } = await jmClient.pushFS({ cmd }); 
 console.log(stdout)// "hello"
 const fileContent = await jobFS.readToString('beam_up.txt');
 console.log(fileContent)// "ready to"
+```
+
+#### Creating pipeline of jobs
+Batches of jobs can be combined to implement pipelines.
+Array of jobs can be joined using the *pushMany* method.
+The resulting array of results is an iterator over the stdout of each job. The order of submission is maintained.
+
+```javascript
+const results = await jmClient.pushMany([
+            {cmd : 'sleep 1 ; echo "Job 1 output"'},
+            {cmd : 'sleep 10; echo "Job 2 output"'}
+]);
+// ~ 10 sc later
+results.forEach((stdout, i)=> {
+    console.log(`${i} ==> ${stdout}`) // Job 1 output
+});                                   // Job 2 output
+```
+
+Because the execution of the local function awaits for all jobs completion, jobs can be easily chained. We illustrate this by using the *pushManyFS* method.
+This functions also awaits for the completion of submitted jobs and then iterates over each job stdout and jobFS object.
+
+```javascript
+const resultsFS = await jmClient.pushManyFS([
+    {cmd : 'sleep 1 ; echo "Job 1 output" > job1.out'},
+    {cmd : 'sleep 10; echo "Job 2 output" > job2.out'}
+]);
+//~ 10sc later
+const stream1 = resultsFS[0].jobFS.readToStream("job1.out");
+const stream2 = resultsFS[1].jobFS.readToStream("job2.out");
+const stdout = await jmClient.push({
+    cmd: "paste input/job1.in input/job2.in",
+    inputs : {  "job1.in" : stream1,
+                "job2.in" : stream2,
+    }
+});
+console.log(stdout); // "Job 1 output Job 2 output""
 ```
 
 #### Job error managment
@@ -163,6 +202,7 @@ Running a POSIX thread instance of the job-manager server with the **emulate** e
 ```sh
 node build/bin/startServer.js -c [PATH TO FOLDER CACHE] -e emulate -n 2
 ```
+
 #### Configuration file
 
 

@@ -17,13 +17,14 @@ import { socketPull } from '../../comLayer/serverShell';
 
 export function JobOptClientFactory(opt:any):JobOptProxy {
     const jobOptProxy:JobOptProxy = jobOptBaseFactory(opt);
-    // We chack for mandatory set of key
+    // We check for mandatory set of key
 
     if(jobOptProxy.script && jobOptProxy.cmd)
         throw(`jobOpt has conflicting script and cmd attributes\n${uFormat(jobOptProxy)}`);
     if(!jobOptProxy.script && !jobOptProxy.cmd)
         throw(`jobOpt must have at least a script or a cmd attributes\n${uFormat(jobOptProxy)}`);
 
+    // Inputs validity is performed server-side
     return jobOptProxy;
 }
 

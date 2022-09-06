@@ -1,9 +1,6 @@
 import jmClient from '../client';
 
-import {logger, setLogLevel, setLogFile} from '../logger.js';
-//setLogLevel("debug");
-
-console.warn("Riding pipeline");
+console.warn("Submitting two jobs and join there results into a third one");
 
 const port = 2020;
 const TCPip = "127.0.0.1";
@@ -11,7 +8,6 @@ const TCPip = "127.0.0.1";
 (async() => {
     try {
         await jmClient.start(TCPip, port);
-        // push many
         const resultsWithFS = await jmClient.pushManyFS([
             {cmd : 'sleep 1; echo "Job $tag output" > job1.out',
             exportVar : {tag : "T1"}},

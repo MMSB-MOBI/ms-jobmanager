@@ -69,27 +69,6 @@ export class JobFileSystem {
         });
     }
     async readToStream(fileName:string):Promise<Readable>{
-        
-        // dummy implementation, this works
-        /*
-        const netStream = new Readable();
-        netStream.push("dummy stream content");
-        netStream.push(null);
-        */
-        
-        // Previous implementation, does not work
-        //const netStream = await this._read(fileName); 
-        // DEBUG, causes stream to be consumed
-        /*  const chunks: Uint8Array[] = [];
-        netStream.on('data', (chunk: Uint8Array) => chunks.push(chunk))
-        netStream.on('end', () => {
-            const _ = Buffer.concat(chunks).toString('utf8');             
-            logger.info("PI::\n" + _);
-        });
-        netStream.on('error', (err:string) => logger.error(err));
-        */
-
-
         return new Promise( async (res, rej)=> {
 
             const chunksArray: Uint8Array[] = [];
@@ -108,17 +87,15 @@ export class JobFileSystem {
                 rej(e);
             }
         });
-
-        //return netStream as Readable;
-     }
+    }
  
-     async readToString(fileName:string):Promise<string> {
-         const netStream = await this._read(fileName);
-         const stdout    = await streamToString(netStream)
-         return stdout;
-     }
+    async readToString(fileName:string):Promise<string> {
+        const netStream = await this._read(fileName);
+        const stdout    = await streamToString(netStream)
+        return stdout;
+    }
  
-    async _read(fileName:Path):Promise<Readable>{
+    private async _read(fileName:Path):Promise<Readable>{
         return new Promise( (res, rej) => {
             // First we check for file status, then we pull stream and resolve/forward it
             this.socket.emit("isReadable", fileName, (response:responseFS) => {

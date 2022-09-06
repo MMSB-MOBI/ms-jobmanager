@@ -7,8 +7,6 @@ import { isJobOptFromClientToServer as isJobOptProxy } from './lib/socket-manage
 import { JobOptProxy } from './shared/types/client';
 import { JobOpt } from './shared/types/server';
 import { getEngine, EngineInterface } from './lib/engine'; 
-//import jmServer = require('./nativeJS/job-manager-server.js');
-//import *  as jmServer from 'comLayer/serverShell';// = require('./nativeJS/job-manager-server.js');
 
 import { SocketRegistry, bouncer, granted, startSocketServer, openBar } from './comLayer/serverShell';
 import * as liveMemory from './lib/core/pool.js';
@@ -20,13 +18,8 @@ import {transformProxyToJobOpt, pprintJobTemplate} from './job/template';
 import { MS_lookup, test as whTest, setParameters as whSetConnect, storeJob } from './lib/warehouse';
 import {create as createCache} from "./lib/core/cache";
 import { Socket } from 'socket.io';
-//export {EngineSpecs} from './lib/engine';
-
 
 let engine:EngineInterface; // to type with Engine contract function signature
-
-
-
 let scheduler_id :string = uuidv4();
 
 // Intervall for periodic operations
@@ -149,7 +142,6 @@ async function pushMS(jobID:uuid, jobOptProxy:JobOptProxy, nspJobSocket:Socket):
         })
     const _ = _push(jobOpt);
 }
-
 
 function _push(jobOpt:JobOpt):Job {
     logger.debug(`Attempting Job construction w/ following jobOpt element\n${uFormat(jobOpt)}`);
