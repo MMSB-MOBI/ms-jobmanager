@@ -12,6 +12,7 @@ import {ConnectionError, StartConnectionError,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 
+// THIS PUBLIC CLIENT API SHOULD BE INCLUDED IN D.TS
 
 interface DatumPushFS {
     stdout:string,

@@ -120,14 +120,23 @@ export class Job extends JobBase implements JobOpt  {
         this.engine.setSysProfile(sysSettingsKey);
         console.log(`A job was buildt w/ following jobOpt:\n${uFormat(jobOpt)}` )
     }
+    private getConcreteWorkDir():Path{
+        if (this.isShimmeringOf) {
+            logger.debug(`Job work dir linked from shimmer job ${this.id} to genuine job ${this.isShimmeringOf.id}`);
+            return this.isShimmeringOf.workDir;
+        }
+        return this.workDir;
+    }
     // search for FS items, w/ the glob-spawn package
     async list(pattern:Path):Promise<string[]> {
-        logger.debug(`Listing !! in ${this.workDir} w/ ${pattern}`);
-        const files = await find(pattern, { cwd: this.workDir });
+        const cwd = this.getConcreteWorkDir(); 
+        logger.debug(`Listing !! in ${cwd} w/ ${pattern}`);
+        const files = await find(pattern, { cwd });
         return files;
     }
     async read(relativePath:Path):Promise<ReadStream>{
-        const path = `${this.workDir}/${relativePath}`
+        const cwd = this.getConcreteWorkDir(); 
+        const path = `${cwd}/${relativePath}`
         logger.debug(`reading fs from ${path}`)
         return new Promise ( (resolve, reject) => {
             const readStream = createReadStream(path);
@@ -139,7 +148,8 @@ export class Job extends JobBase implements JobOpt  {
         });
     }
     async access(maybeRelativeFileName:Path):Promise<void> {
-        const path = `${this.workDir}/${maybeRelativeFileName}`
+        const cwd = this.getConcreteWorkDir(); 
+        const path = `${cwd}/${maybeRelativeFileName}`
         return new Promise ( (res, rej) => {
             access(path, constants.R_OK, (err:NodeJS.ErrnoException) => {
                 if(err)

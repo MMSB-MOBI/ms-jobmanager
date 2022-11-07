@@ -56,8 +56,8 @@ function _pulse() {
     }
 }
 
-//CH 02/12/19
-// Maybe use promess instead of emit("ready"), emit("error")
+// Public API
+
 export function start(opt:JobManagerSpecs):EventEmitter {
     logger.debug(`${uFormat(opt)}`);
 
