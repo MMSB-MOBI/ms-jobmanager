@@ -8,7 +8,7 @@ import { logger, setLogLevel } from './logger';
 import { format as uFormat } from 'util';
 import {ConnectionError, StartConnectionError, 
         RemoteFileSystemError, PushConnectionLostError, 
-        ScriptError, RemoteScriptError,JobStderrNotEmpty,
+        ScriptError, RemoteScriptError,JobStderrNotEmpty, JobStderrNotEmptyFS,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 
@@ -72,10 +72,22 @@ class JmClient {
     }
 
     async pushFS(jobOpt: JobOptProxy): Promise<DatumPushFS>{
-        const [job, stdout] = await this._push(jobOpt);
-        const jobFileInterface = this._shell.createFS(job);
-        return { stdout, jobFS: jobFileInterface }
+        try {
+            const [job, stdout] = await this._push(jobOpt);     
+            const jobFileInterface = this._shell.createFS(job);
+            return { stdout, jobFS: jobFileInterface }
+       
+        } catch(e) {
+            if(e instanceof JobStderrNotEmpty) {
+                const job = e.job;
+                const jobFileInterface = this._shell.createFS(job);
+                throw new JobStderrNotEmptyFS(e, jobFileInterface);
+            } else {
+                throw(e);
+            }
+        }
     }
+    
     async pushManyFS(jobOptArray: JobOptProxy[]):Promise<DatumPushFS[]> {
         const _ = await this._pushMany(jobOptArray);
         return _.map( ([job, stdout]) => { return { stdout, jobFS:this._shell.createFS(job)};})
@@ -132,7 +144,7 @@ class JmClient {
                         stderr.on('end', () => {
                             if (errchunks.length > 0) {                          
                                 const _ = Buffer.concat(errchunks).toString('utf8');                                               
-                                rej( new JobStderrNotEmpty(_, job.id) );
+                                rej( new JobStderrNotEmpty(_, job) );
                                 return;
                             }
                         

@@ -1,6 +1,7 @@
 import {inspect} from 'util';
 import { JobOptProxy, JobProxy } from '../shared/types/client';
 import { Readable } from 'stream';
+import { JobFileSystem } from '../comLayer/clientShell/fileSystem';
 
 export class ConnectionError extends Error {
     TCP:string;
@@ -61,9 +62,23 @@ export class JobError extends Error {
 }
 
 export class JobStderrNotEmpty extends JobError {
-    constructor(stderr:string, id:string) {
-        super(stderr, id);
+    stderr:string; 
+    job:JobProxy;
+    constructor(stderr:string, job:JobProxy) {
+        super(stderr, job.id);
         this.name = "JobStderrNotEmpty";
+        this.stderr = stderr;
+        this.job    = job;
+        //Job//Error.captureStackTrace(this, JobStderrNotEmpty);
+    }
+}
+
+export class JobStderrNotEmptyFS extends JobStderrNotEmpty {
+    jobFS:JobFileSystem;
+    constructor(error:JobStderrNotEmpty, jobFS:JobFileSystem) {
+        super(error.stderr, error.job);
+        this.name = "JobStderrNotEmptyFS";
+        this.jobFS = jobFS;
         //Job//Error.captureStackTrace(this, JobStderrNotEmpty);
     }
 }
