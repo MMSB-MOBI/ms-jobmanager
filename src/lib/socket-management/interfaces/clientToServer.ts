@@ -7,4 +7,5 @@ export interface ClientToServerEvents {
     withAck: (d: string, callback: (e: number) => void) => void;
     isReadable: (fileName:Path, callback:(response:responseFS) => void) => void;
     list: (path:Path, callback:(file_list:string[])=>void) => void;    
+    //wrapAsZip: (callback:(response:responseFS)=>void)=>void;
 }

@@ -1,6 +1,6 @@
 import  { EventEmitter } from 'events';
-import { createWriteStream, readdir, chmod, ReadStream, createReadStream, readFileSync, writeFile, writeFileSync, stat, access, constants } from 'fs';
-
+import { createWriteStream, chmod, ReadStream, createReadStream, readFileSync, writeFile, writeFileSync, stat, access, constants } from 'fs';
+import {PassThrough} from 'stream';
 import mkdirp = require('mkdirp');
 import {format as uFormat } from 'util';
 import isStream = require('is-stream');
@@ -18,6 +18,10 @@ import { JobBase } from '../shared/types/common/job_model';
 import { socketPull } from '../comLayer/serverShell';
 import { Socket as SocketServer } from 'socket.io'
 import { find } from 'glob-spwan';
+
+// import { createGzip } from 'zlib';
+import { zipMeFork } from 'zip-spawn'
+
 /* The jobObject behaves like an emitter
  * Emitter exposes following event:
  *          'lostJob', {Object}jobObject : any job not found in the process pool
@@ -133,6 +137,13 @@ export class Job extends JobBase implements JobOpt  {
         logger.debug(`Listing !! in ${cwd} w/ ${pattern}`);
         const files = await find(pattern, { cwd });
         return files;
+    }
+    zipit():Readable { // This should be design as external forkable ressource like glob-spwan
+        const cwd = this.getConcreteWorkDir();
+        logger.debug(`Zipping_fork_ ...${cwd}`);
+        const dirZipStream = zipMeFork(cwd);
+
+        return dirZipStream;
     }
     async read(relativePath:Path):Promise<ReadStream>{
         const cwd = this.getConcreteWorkDir(); 

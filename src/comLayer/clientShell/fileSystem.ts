@@ -1,4 +1,4 @@
-import { Readable, Transform, Writable } from 'stream';
+import { PassThrough, Readable, Transform, Writable } from 'stream';
 import { Path } from '../../shared/types/base';
 import { Socket } from 'socket.io-client';
 import { ClientToServerEvents, ServerToClientEvents, responseFS} from '../../lib/socket-management/interfaces';
@@ -48,6 +48,30 @@ export class JobFileSystem {
             sourceStream.pipe(targetStream);
         });
     }
+    // Zip entiere working folder
+    async zrap():Promise<Readable> {
+        return new Promise( async (res, rej)=> {
+            const chunksArray: Uint8Array[] = [];
+            const netStream = ss.createStream();
+            try {
+                ss(this.socket).emit('fsZip', netStream);  
+                netStream.on('data', (chunk: Uint8Array) => {
+                    console.log("Getting stuff from ss_socket server");
+                    chunksArray.push(chunk);
+                });
+                netStream.on('end', ()=> {
+                    console.log("Zrap netStream ending");
+                    const oStream = new PassThrough();
+                    res(oStream);
+                    //chunksArray.forEach( (chunk)=> oStream.push(chunk));
+                    oStream.push("GLGLG");
+                    oStream.push(null);
+                });
+            } catch(e) {
+                rej(e);
+            }
+        });       
+    };
     private async checkTargetPath(targetFileName:string):Promise<void> {
         return new Promise( async (res, rej)=> {
             const id = this.job.id;
@@ -109,5 +133,7 @@ export class JobFileSystem {
             });
         });    
     }
+
+
  }
  
