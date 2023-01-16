@@ -155,8 +155,6 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
     ss(jobSocket).on('fsZip', function(stream:WriteStream) {
         logger.debug(`${job.id} Trying to wrap and zip`);
         const zipDirStream = job.zipit();
-        zipDirStream.on('close', ()=>{ logger.debug("Closing zip network stream");})
-        zipDirStream.on('data', ()=>{ logger.debug("Sending stuff over zip network stream");})
         
         zipDirStream.pipe(stream);
     }); 

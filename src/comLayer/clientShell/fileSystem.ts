@@ -49,22 +49,19 @@ export class JobFileSystem {
         });
     }
     // Zip entiere working folder
-    async zrap():Promise<Readable> {
+    async zap():Promise<Readable> {
         return new Promise( async (res, rej)=> {
             const chunksArray: Uint8Array[] = [];
             const netStream = ss.createStream();
             try {
-                ss(this.socket).emit('fsZip', netStream);  
+                ss(this.socket).emit('fsZip', netStream);             
                 netStream.on('data', (chunk: Uint8Array) => {
-                    console.log("Getting stuff from ss_socket server");
                     chunksArray.push(chunk);
                 });
                 netStream.on('end', ()=> {
-                    console.log("Zrap netStream ending");
-                    const oStream = new PassThrough();
+                    const oStream = new Readable();
                     res(oStream);
-                    //chunksArray.forEach( (chunk)=> oStream.push(chunk));
-                    oStream.push("GLGLG");
+                    chunksArray.forEach( (chunk)=> oStream.push(chunk));
                     oStream.push(null);
                 });
             } catch(e) {
