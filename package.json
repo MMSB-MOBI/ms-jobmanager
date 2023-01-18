@@ -2,12 +2,15 @@
   "name": "ms-jobmanager",
   "version": "3.7.0",
   "description": "A micro-service to handle job instanciation and submission ",
-  "main": "client.js",
+  "main": "build/client.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "build": "tsc",
+    "build": "tsc && rm build/examples/*.d.ts",
     "postbuild": "cp -r data/ build/examples/data/"
   },
+  "files": [
+    "/build"
+  ],
   "repository": {
     "type": "git",
     "url": "git+https://github.com/MMSB-MOBI/ms-jobmanager.git"

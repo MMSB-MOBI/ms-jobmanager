@@ -136,12 +136,18 @@ It will return an object which can be destructured to get in addition to the sta
 * `copy(sourceFileName:string, targetFileName:Path)`, which copies a file from the job working folder to a target location
 
 ```javascript
-
 const cmd = 'echo "ready to" > beam_up.txt; echo "hello";'
 const { stdout, jobFS } = await jmClient.pushFS({ cmd }); 
 console.log(stdout)// "hello"
 const fileContent = await jobFS.readToString('beam_up.txt');
 console.log(fileContent)// "ready to"
+```
+* `zap()`, which returns a readable stream of the entier job work folder a zip archive.
+```javascript
+const zipArchiveStream = await jobFS.zap();
+const output   = createWriteStream('./data_out.zip');
+zipArchiveStream.pipe(output);
+// data_out.zip bundles the entiere work folder content
 ```
 
 #### Creating pipeline of jobs
