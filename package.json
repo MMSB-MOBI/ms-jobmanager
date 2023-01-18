@@ -3,6 +3,9 @@
   "version": "3.7.1",
   "description": "A micro-service to handle job instanciation and submission ",
   "main": "build/client.js",
+    "exports": {
+      "./": "./build/"
+    },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && rm build/examples/*.d.ts",
