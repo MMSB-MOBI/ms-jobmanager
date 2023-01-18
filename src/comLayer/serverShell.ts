@@ -152,9 +152,11 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
             logger.info(`${job.id} Pumping fsRead 2/2`);
         });
     }); 
-    ss(jobSocket).on('fsZip', function(stream:WriteStream) {
-        logger.debug(`${job.id} Trying to wrap and zip`);
-        const zipDirStream = job.zipit();
+    ss(jobSocket).on('fsZip', function(stream:WriteStream, noHeaderFiles:boolean) {
+        //{ netStream, noHeaderFiles } = data;
+
+        logger.debug(`${job.id} Trying to wrap and zip with noHeaderFiles set to ${noHeaderFiles}`);
+        const zipDirStream = job.zipit(noHeaderFiles);
         
         zipDirStream.pipe(stream);
     }); 

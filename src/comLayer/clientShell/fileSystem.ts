@@ -49,12 +49,13 @@ export class JobFileSystem {
         });
     }
     // Zip entiere working folder
-    async zap():Promise<Readable> {
+    async zap(noHeaderFiles=true):Promise<Readable> {
         return new Promise( async (res, rej)=> {
             const chunksArray: Uint8Array[] = [];
             const netStream = ss.createStream();
+            console.log(`=>${noHeaderFiles}`);
             try {
-                ss(this.socket).emit('fsZip', netStream);             
+                ss(this.socket).emit('fsZip', netStream, noHeaderFiles );             
                 netStream.on('data', (chunk: Uint8Array) => {
                     chunksArray.push(chunk);
                 });
