@@ -2,14 +2,11 @@
   "name": "ms-jobmanager",
   "version": "3.7.2",
   "description": "A micro-service to handle job instanciation and submission ",
-  "main": "build/client.js",
-  "exports": {
-    "./": "./build/"
-  },
+  "main": "client.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && rm build/examples/*.d.ts",
-    "postbuild": "cp -r data/ build/examples/data/"
+    "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;"
   },
   "files": [
     "/build"
