@@ -53,7 +53,6 @@ export class JobFileSystem {
         return new Promise( async (res, rej)=> {
             const chunksArray: Uint8Array[] = [];
             const netStream = ss.createStream();
-            console.log(`=>${noHeaderFiles}`);
             try {
                 ss(this.socket).emit('fsZip', netStream, noHeaderFiles );             
                 netStream.on('data', (chunk: Uint8Array) => {
