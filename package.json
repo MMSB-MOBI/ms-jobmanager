@@ -47,7 +47,7 @@
     "through2": "^2.0.3",
     "uuid": "^3.2.1",
     "winston": "^3.0.0",
-    "zip-spawn": "^1.2.1"
+    "zip-spawn": "^1.2.2"
   },
   "devDependencies": {
     "@types/node": "^9.6.56",
