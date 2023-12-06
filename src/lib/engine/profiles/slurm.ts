@@ -51,14 +51,24 @@ const engineSys = {
             "iCache" : "prod/mad/tmp",
             "execUser" : "ws_mad"
         },
-        "ws2-dev-cstb" : {
+        "dev-cstb" : {
             "binaries": WS_DEFAULT_BIN,
             "iCache" : "dev/cstb/tmp",
+            "execUser" : "ws_cstb"
+        },
+        "ws2-prod-cstb" : {
+            "binaries": WS_DEFAULT_BIN,
+            "iCache" : "prod/cstb/tmp",
             "execUser" : "ws_cstb"
         },
         "ws2-dev-detbelt" : {
             "binaries": WS_DEFAULT_BIN,
             "iCache" : "dev/detbelt/tmp",
+            "execUser" : "ws_detbelt"
+        },
+        "ws2-prod-detbelt" : {
+            "binaries": WS_DEFAULT_BIN,
+            "iCache" : "prod/detbelt/tmp/",
             "execUser" : "ws_detbelt"
         }
     }
@@ -158,7 +168,11 @@ const profiles: profileInterface = {
         "ws2-long" : {
             "partition" : "long",
             "addToBash" : ". /etc/profile" //to allow user to execute
-        }
+        },
+	"debian-short" : {
+	   "partition" : "debian_short",
+	   "addToBash" : ". /etc/profile" 
+	}
     }
 }
 

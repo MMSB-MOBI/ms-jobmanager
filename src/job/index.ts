@@ -716,7 +716,7 @@ function batchDumper(job: jobObject) {
 
     if (job.modules) {
         job.modules.forEach(function(e) {
-            batchContentString += "module load " + e + '\n';
+            batchContentString += "module load -s " + e + '\n';
         });
     }
 
