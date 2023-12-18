@@ -11,7 +11,14 @@ import {ConnectionError, StartConnectionError,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 import { Readable } from 'stream';
-// THIS PUBLIC CLIENT API SHOULD BE INCLUDED IN D.TS
+
+
+// Limited PUBLIC CLIENT API
+
+/*
+    For now they are (re) declared for sole public purpose here
+    They may be imported from ./shared/types/* in the future
+*/
 
 export interface DatumPushFS {
     stdout:string,
@@ -19,6 +26,16 @@ export interface DatumPushFS {
 }
 
 export interface InputMap { [ name:string ] : string|Readable }
+
+export interface JobInputs {
+    exportVar: { [key: string]: string },
+    inputs: InputMap,
+    modules? : string[],
+    script? : string,
+    jobProfile? : string,
+    sysSettingsKey? : string, 
+};
+/* ---------------------- */
 
 export class JmClient {
     private port?: number;
