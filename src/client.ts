@@ -4,30 +4,33 @@ import { JobOptProxy, JobProxy } from './shared/types/client';
 import { ClientShell } from './comLayer/clientShell';
 import { uuid } from './shared/types/base';
 import uuidv4 = require('uuid/v4');
-import { logger, setLogLevel } from './logger';
 import { format as uFormat } from 'util';
 import {ConnectionError, StartConnectionError, 
         RemoteFileSystemError, PushConnectionLostError, 
         ScriptError, RemoteScriptError,JobStderrNotEmpty, JobStderrNotEmptyFS,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
-
+import { Readable } from 'stream';
 // THIS PUBLIC CLIENT API SHOULD BE INCLUDED IN D.TS
 
-interface DatumPushFS {
+export interface DatumPushFS {
     stdout:string,
     jobFS: JobFileSystem
 }
 
-class JmClient {
+export interface InputMap { [ name:string ] : string|Readable }
+
+export class JmClient {
     private port?: number;
     private TCPip?: string;
     private _connect: boolean = false;
     private _uuid: uuid;
     private _shell:ClientShell;
+
+    static instance: JmClient;
     constructor() {
         this._uuid = uuidv4();
-        logger.info("jobmanager client instance " + this._uuid);
+        //console.info("jobmanager client instance " + this._uuid);
         this._shell = new ClientShell();       
     }
 
@@ -104,7 +107,7 @@ class JmClient {
     }
 
     private async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 
-        logger.debug(`Pushing following ${uFormat(jobOpt)}`);      
+        //logger.debug(`Pushing following ${uFormat(jobOpt)}`);      
         return new Promise((res, rej) => {
             this.start(this.TCPip as string, this.port as number).then(async () => {
                 try {

@@ -140,7 +140,7 @@ export class Job extends JobBase implements JobOpt  {
     }
     zipit(noHeaderFiles:boolean):Readable { // This should be design as external forkable ressource like glob-spwan
         const cwd = this.getConcreteWorkDir();
-        logger.debug(`Zipping_fork_ ...${cwd}`);
+        logger.debug(`Zipping_fork... ${cwd}`);
         const blackList = noHeaderFiles ?
             [`${this.id}.batch`, `${this.id}_coreScript.sh`, 'jobID.json']
             : [];
