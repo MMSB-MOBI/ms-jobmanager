@@ -9,7 +9,7 @@
     "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;"
   },
   "files": [
-    "*"
+   "*"
   ],
   "repository": {
     "type": "git",
