@@ -25,11 +25,11 @@ export interface DatumPushFS {
     jobFS: JobFileSystem
 }
 
-export interface InputMap { [ name:string ] : string|Readable }
+type PublicInputSrc = { [ name:string ] : string|Readable } | string[];
 
 export interface JobInputs {
     exportVar: { [key: string]: string },
-    inputs: InputMap,
+    inputs: PublicInputSrc,
     modules? : string[],
     script? : string,
     jobProfile? : string,
