@@ -1,13 +1,13 @@
 {
   "name": "ms-jobmanager",
-  "version": "3.10.0",
+  "version": "3.11.0",
   "description": "A micro-service to handle job instanciation and submission ",
   "main": "client.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && rm build/examples/*.d.ts",
     "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;",
-    "server"   : "node build/bin/startServer.js"
+    "server": "node build/bin/startServer.js"
   },
   "files": [
     "*"
