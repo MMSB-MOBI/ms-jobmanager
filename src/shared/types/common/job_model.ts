@@ -5,7 +5,6 @@ import { Readable } from 'stream';
 import uuidv4 = require('uuid/v4');
 import { JobOptBase } from './jobopt_model';
 import { format as uFormat } from 'util';
-import { isArrayOfString, isStreamOrStringMap } from '../base';
 
 /* Mother class for Job  and JobProxy */
 export class JobBase extends EventEmitter implements JobOptBase{

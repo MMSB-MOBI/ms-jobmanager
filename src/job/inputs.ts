@@ -1,13 +1,14 @@
 import { EventEmitter } from "events"; 
 import { Readable } from 'stream'
-import { isStreamOrStringMap, isArrayOfString } from '../shared/types/base';
+import { isStreamOrStringMap } from '../shared/types/base';
 import { format as uFormat} from 'util';
 import { logger } from '../logger';
 const isStream = require('is-stream');
 import { stat as fsStat, lstatSync, createReadStream, createWriteStream } from 'fs';
 import { basename } from  'path';
 import { createHash } from 'crypto';
-import { JobOptInputs } from '../shared/types/common/jobopt_model';
+import { JobOptInputs, ClientInputBaseMap } from '../shared/types/common/jobopt_model';
+import { JobInputBuildError } from "../errors/client";
 
 export class JobInputs extends EventEmitter {
     streams:Record<string, Readable> = {}
@@ -17,14 +18,22 @@ export class JobInputs extends EventEmitter {
     hashable:boolean = false;
     onError:boolean  = false;
 
-    /* Constructor can receive a map w/ two types of value
-        Should be SYNC-like
+    /** 
+     *  Build the Map of file basename and stream
+     * @param data - Array of filepath, or file symbol keys and values as filepath or Readable
+     *               Or an array mixing the three types
+     * Following input spec is valide:
+     *  [ "/path/to/file.txt", 
+     *   {"a.txt": "/path/to/u.log", "g.txt": <Readable>}, 
+     *   "/data/log.txt", 
+     *   {"n.txt": "/path/to/j.zip"}
+     * ]
+     * @returns inputMap - A litteral where keys are symbol used to define target files and values are Readable 
     */
-    constructor(data?:JobOptInputs/*Record<string, string|Readable>|string[]*//*, skip?:boolean*/){
+    constructor(data?:JobOptInputs|JobOptInputs[] /*Record<string, string|Readable>|string[]*//*, skip?:boolean*/){
         super();
-        
-        //let safeNameInput:boolean = true;
-        
+ 
+       
         if(!data) {
             logger.debug("Passed data to JobInput constructor is empty");
             return;
@@ -32,21 +41,29 @@ export class JobInputs extends EventEmitter {
         
         let buffer:Record<string, string|Readable> = {}
         
-
+        // it is a list, which elemnts can be
         if (data.constructor === Array){
             if(data.length == 0)
-                return;
-            if(!isArrayOfString(data) ) {
-                logger.error(`Array of inputs must be strings (plain or filepath)`);
-                this.onError = true;
-                return;
-            }
-            const _:Record<string, string> = {};
-            data.forEach( (item) => {
-                const k   = basename(item);
-                buffer[k] = item;
+                return;        
+            data.forEach( (item:any) => { // type this
+                //1) A string, we assume these are the path to actual files
+                if (typeof item === 'string') {
+                    const k   = basename(item);
+                    if(k in buffer)
+                        throw new JobInputBuildError(`Multiple occurence of key \"${k}\"in jobInput`)
+                    buffer[k] = item;
+                    return;
+                }
+                //2) A map, which can host many key(filename for tgt) value(src file path or Readable)
+                else if ( isStreamOrStringMap(item) ) // It can be a map
+                    for (let symbol in item)
+                        if(symbol in buffer)
+                            throw new JobInputBuildError(`Multiple occurence of key \"${symbol}\"in jobInput`)
+                        else
+                            buffer[symbol] = item[symbol];
+                
             });
-        } else
+        } else // It is a map
             buffer = { ...data as Record<string, string|Readable> } 
       
         const nInputs = Object.keys(buffer).length;

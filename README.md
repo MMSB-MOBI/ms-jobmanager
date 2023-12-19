@@ -125,6 +125,33 @@ const stdout = await jmClient.push({ cmd, inputs });
 console.log(stdout)// the 'random string' string
 ```
 
+###### Obfuscating the job inputs !!
+
+Ultimately, one can provide any array mixing the previous types (see [this example](./src/examples/mixing_inputs.ts)).
+Hence the following inputs array,
+```javascript
+import { clientInputAPI }   from 'ms-jobmanager';
+import { createReadStream } from 'fs';
+
+const inputs = [ 
+    `/some/path/data/hello.sh`,
+    { 
+    "a.txt" : "/the/same/path/hello.sh",
+    "b.txt" :  createReadStream("/another/path/hello.sh`)
+    },
+    "/some/other/path/file.txt",
+    { 
+    "c.txt" : "/here/data/file2.txt",
+    "d.txt" :  createReadStream("/there/data/hello_many.sh")
+    }
+] as clientInputAPI;
+```
+
+will create 6 files named `input/hello.sh, input/a.txt, input/b.txt, input/file.txt, input/c.txt, input/d.txt` in the job working directory.
+<span style="font-weight:bold">Be aware that identical destination filenames are forbidden and will trigger job rejection at submission.</span>
+
+
+
 #### Accessing_job_results_folder
 
 The client `pushFS` method allows for the inspection of a job work folder, to list its content or read its files.
@@ -206,7 +233,7 @@ You must therefore make sure that **no sub-program writes to the standard error*
 #### Starting server
 Running a POSIX thread instance of the job-manager server with the **emulate** engine flag, here we specify a maximum number of 2 submitted jobs.
 ```sh
-node build/bin/startServer.js -c [PATH TO FOLDER CACHE] -e emulate -n 2
+npm run server -- -c /[PATH TO FOLDER CACHE] -e emulate -n 2
 ```
 
 #### Configuration file

@@ -6,7 +6,7 @@ import { Readable } from "stream";
 import { readable as isReadable } from 'is-stream';
 import { JobInputs } from '../../job/inputs';
 import { accessSync, constants } from 'fs';
-import { format as uFormat } from 'util';
+import { JobOptInputs } from './common/jobopt_model';
 /*
     Usual basic container type interface and predicates
 */
@@ -85,15 +85,40 @@ export function isInputDataSocket(obj:any): obj is InputDataSocket {
     return true;
 }
 
-export function isValidJobOptInputs (obj: any): obj is InputDataSocket|string[]|JobInputs {
-    if (obj instanceof JobInputs) return true;
+export function isReadableStream(obj:any): obj is Readable {
+    return (
+      obj !== null &&
+      typeof obj === 'object' &&
+      typeof obj.pipe === 'function' &&
+      typeof obj.on === 'function' &&
+      typeof obj.read === 'function'
+    );
+  }
+
+export function isValidJobOptInputs (obj: any): obj is JobOptInputs {//InputDataSocket|string[]|JobInputs {
+    if (obj instanceof JobInputs) 
+        return true;
+    if (isInputDataSocket(obj))
+        return true;
+
     if (obj instanceof Array) {
-        for (const _ of obj) {
-            if(typeof(_) != 'string') return false;
+        for (const _ of obj) {
+            if(typeof(_) == 'string') {
+                if( !isPath(_) ) {
+                    console.error(`[ms-jobmanager:client::Input Check Failure] ${_} is an invalid path`);
+                    return false;
+                }
+            } else {
+                if(!isInputDataSocket(_)) {
+                    console.error(`[ms-jobmanager:client::Input Check Failure] ${_} is not a valid map`);
+                    return false;
+                }
+            }
         }
         return true;
     }
-    return isInputDataSocket(obj);
+
+    return false;
 }
 
 export function isArrayOfString(obj:any): obj is string[] {

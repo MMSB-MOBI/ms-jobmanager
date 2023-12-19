@@ -6,7 +6,8 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && rm build/examples/*.d.ts",
-    "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;"
+    "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;",
+    "server"   : "node build/bin/startServer.js"
   },
   "files": [
     "*"

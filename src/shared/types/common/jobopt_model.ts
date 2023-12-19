@@ -7,7 +7,11 @@ import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, 
 import { Path, isReadableOrPath } from '../base';
 import { JobOptError } from '../../../errors/client';
 
-export type JobOptInputs = InputDataSocket|string[]|Record<string, string|Readable> | JobInputs;
+
+export type ClientInputBaseMap = Record<string, string|Readable>;
+export type ClientInput = (string|ClientInputBaseMap )[]|ClientInputBaseMap; // list of strings and maps or a map
+
+export type JobOptInputs = InputDataSocket|ClientInput|JobInputs;
 export interface JobOptBase {     
     cmd? : string,
     exportVar? : Record<string, string|number>    
@@ -21,13 +25,6 @@ export interface JobOptBase {
     ttl? : number
     inputs? : JobOptInputs, /* Cover all possible types in inherited interface, should be "abstracted" */
 }
-/* Moved to errors
-const typeLogError = (varName:string, eType:string, varValue:any):void => {
-    logger.error(`jobOpt property ${varName} of value ${varValue} is not of type ${eType}`);
-};
-*/
-// Code duplication across Factory and TypeGuard
-// Factorization by callback function may cause TS inference pb
 
 export function jobOptBaseFactory(opt:Object):JobOptBase {
     const jobOptBase:JobOptBase = {       
@@ -58,8 +55,7 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
                 jobOptBase[key] = value;
         if (key == 'inputs')
             if(!isValidJobOptInputs(value))
-                //typeLogError(key, 'InputDataSocket|string[]|JobInputs|Record<string, string|Readable>', value);
-                throw(new JobOptError(key, 'InputDataSocket|string[]|JobInputs|Record<string, Path|Readable>', value));    
+                throw(new JobOptError(key, 'InputDataSocket | ClientInput | JobInputs', value));
             else
                 jobOptBase[key] = value;
         if (key == 'exportVar')

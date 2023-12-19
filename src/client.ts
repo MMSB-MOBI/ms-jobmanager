@@ -1,6 +1,6 @@
 //import * as jobManagerClient from './comLayer/clientShell';
 import{ JobFileSystem } from './comLayer/clientShell/fileSystem' 
-import { JobOptProxy, JobProxy } from './shared/types/client';
+import { JobOptProxy as JobOptAPI, JobProxy, clientInputAPI } from './shared/types/client';
 import { ClientShell } from './comLayer/clientShell';
 import { uuid } from './shared/types/base';
 import uuidv4 = require('uuid/v4');
@@ -10,8 +10,8 @@ import {ConnectionError, StartConnectionError,
         ScriptError, RemoteScriptError,JobStderrNotEmpty, JobStderrNotEmptyFS,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
-import { Readable } from 'stream';
 
+export { clientInputAPI };
 
 // Limited PUBLIC CLIENT API
 
@@ -25,16 +25,16 @@ export interface DatumPushFS {
     jobFS: JobFileSystem
 }
 
-type PublicInputSrc = { [ name:string ] : string|Readable } | string[];
-
-export interface JobInputs {
+//export type PublicInputSrc = { [ name:string ] : string|Readable } | string[];
+/*
+export interface JobOptAPI {
     exportVar: { [key: string]: string },
-    inputs: PublicInputSrc,
+    inputs: clientInputAPI,
     modules? : string[],
     script? : string,
     jobProfile? : string,
     sysSettingsKey? : string, 
-};
+};*/
 /* ---------------------- */
 
 export class JmClient {
@@ -82,16 +82,16 @@ export class JmClient {
     }
 
     // Handling of submitted jobs
-    async push(jobOpt: JobOptProxy):Promise<string> {       
+    async push(jobOpt: JobOptAPI):Promise<string> {       
         const [job, stdout] = await this._push(jobOpt);
         return stdout;
     }
-    async pushMany(jobOptArray: JobOptProxy[]):Promise<string[]> {
+    async pushMany(jobOptArray: JobOptAPI[]):Promise<string[]> {
         const _ = await this._pushMany(jobOptArray)
         return _.map( ([jobProxy, stdout]) => stdout );
     }
 
-    async pushFS(jobOpt: JobOptProxy): Promise<DatumPushFS>{
+    async pushFS(jobOpt: JobOptAPI): Promise<DatumPushFS>{
         try {
             const [job, stdout] = await this._push(jobOpt);     
             const jobFileInterface = this._shell.createFS(job);
@@ -108,12 +108,12 @@ export class JmClient {
         }
     }
     
-    async pushManyFS(jobOptArray: JobOptProxy[]):Promise<DatumPushFS[]> {
+    async pushManyFS(jobOptArray: JobOptAPI[]):Promise<DatumPushFS[]> {
         const _ = await this._pushMany(jobOptArray);
         return _.map( ([job, stdout]) => { return { stdout, jobFS:this._shell.createFS(job)};})
     }
    
-    private async _pushMany(jobOptArray: JobOptProxy[]):Promise<[JobProxy, string][]> {
+    private async _pushMany(jobOptArray: JobOptAPI[]):Promise<[JobProxy, string][]> {
         const _:[JobProxy, string][] = await Promise.all(
             jobOptArray.map( (jobOpt) => {
                 console.log("Loading one _push over " + uFormat(jobOpt));
@@ -123,20 +123,20 @@ export class JmClient {
         return _;
     }
 
-    private async _push(jobOpt: JobOptProxy): Promise<[JobProxy, string]> { 
+    private async _push(jobOpt: JobOptAPI): Promise<[JobProxy, string]> { 
         //logger.debug(`Pushing following ${uFormat(jobOpt)}`);      
         return new Promise((res, rej) => {
             this.start(this.TCPip as string, this.port as number).then(async () => {
                 try {
                     const job = await this._shell.push(jobOpt);
-                    job.on("scriptError", (message: string, data:JobOptProxy) => {                    
+                    job.on("scriptError", (message: string, data:JobOptAPI) => {                    
                         rej(new ScriptError(message, job.id));
                     });
-                    job.on("lostJob", (data:JobOptProxy) => {
+                    job.on("lostJob", (data:JobOptAPI) => {
                         rej(new LostJobError(job.id, data))
                     });
 
-                    job.on("fsFatalError", (message: string, error: string, data:JobOptProxy) => { //jobObject
+                    job.on("fsFatalError", (message: string, error: string, data:JobOptAPI) => { //jobObject
                         rej(new RemoteFileSystemError(message, error, job.id, data));
                     });
                     job.on("scriptSetPermissionError", (err: string) => {

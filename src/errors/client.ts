@@ -49,6 +49,14 @@ export class JobOptError extends Error {
     }
 }
 
+export class JobInputBuildError extends Error {
+    constructor(msg:string) {
+        super(msg);
+        this.name = 'JobInputBuildError';
+        //Error.captureStackTrace(this, JobOptError);
+    }
+}
+
 export class JobError extends Error {
     id:string;
     
