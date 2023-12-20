@@ -1,6 +1,6 @@
 //import * as jobManagerClient from './comLayer/clientShell';
 import{ JobFileSystem } from './comLayer/clientShell/fileSystem' 
-import { JobOptProxy as JobOptAPI, JobProxy, clientInputAPI } from './shared/types/client';
+import { JobOptProxy as JobOptAPI, JobProxy, ClientInputAPI } from './shared/types/client';
 import { ClientShell } from './comLayer/clientShell';
 import { uuid } from './shared/types/base';
 import uuidv4 = require('uuid/v4');
@@ -11,7 +11,7 @@ import {ConnectionError, StartConnectionError,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 
-export { clientInputAPI };
+export { ClientInputAPI };
 
 // Limited PUBLIC CLIENT API
 
@@ -29,7 +29,7 @@ export interface DatumPushFS {
 /*
 export interface JobOptAPI {
     exportVar: { [key: string]: string },
-    inputs: clientInputAPI,
+    inputs: ClientInputAPI,
     modules? : string[],
     script? : string,
     jobProfile? : string,

@@ -1,7 +1,7 @@
 export { JobOptBase as JobOptProxy } from './common/jobopt_model' 
 import { JobOptBase as JobOptProxy, jobOptBaseFactory } from './common/jobopt_model' 
 import { JobBase } from './common/job_model';
-export { ClientInput as clientInputAPI } from './common/jobopt_model';
+export { ClientInput as ClientInputAPI } from './common/jobopt_model';
 import { Readable } from 'stream';
 import { Socket as SocketClient } from 'socket.io-client';
 import { format as uFormat } from 'util';

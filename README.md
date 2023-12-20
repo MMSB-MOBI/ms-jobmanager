@@ -130,7 +130,7 @@ console.log(stdout)// the 'random string' string
 Ultimately, one can provide any array mixing the previous types (see [this example](./src/examples/mixing_inputs.ts)).
 Hence the following inputs array and submission,
 ```javascript
-import { clientInputAPI }   from 'ms-jobmanager';
+import { ClientInputAPI }   from 'ms-jobmanager';
 import { createReadStream } from 'fs';
 
 const cmd = "cat input/*";
@@ -146,7 +146,7 @@ const inputs = [
     "c.txt" : "/here/data/file2.txt",
     "d.txt" :  createReadStream("/there/data/hello_many.sh")
     }
-] as clientInputAPI;
+] as ClientInputAPI;
 
 const stdout = await jmClient.push({ cmd, inputs });
 ```

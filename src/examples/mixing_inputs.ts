@@ -1,6 +1,6 @@
 import { createReadStream } from 'fs';
 import jmClient from '../client';
-import { clientInputAPI } from '../client';
+import { ClientInputAPI } from '../client';
 
 console.warn("Testing inputs mixing !!!");
 let cmd = `cat input/hello.sh > results.log ; cat input/a.txt >> results.log; cat input/b.txt >> results.log;`
@@ -27,7 +27,7 @@ const TCPip = "127.0.0.1";
                 "c.txt" :  `${__dirname}/data/file2.txt`,
                 "d.txt" :  createReadStream(`${__dirname}/data/hello_many.sh`)
             }
-        ] as clientInputAPI;
+        ] as ClientInputAPI;
         const { stdout, jobFS } = await jmClient.pushFS({ cmd, exportVar, inputs });
         console.log(`Job standard output:: ${stdout}`);
 
