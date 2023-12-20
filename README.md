@@ -128,16 +128,18 @@ console.log(stdout)// the 'random string' string
 ###### Obfuscating the job inputs !!
 
 Ultimately, one can provide any array mixing the previous types (see [this example](./src/examples/mixing_inputs.ts)).
-Hence the following inputs array,
+Hence the following inputs array and submission,
 ```javascript
 import { clientInputAPI }   from 'ms-jobmanager';
 import { createReadStream } from 'fs';
 
+const cmd = "cat input/*";
+
 const inputs = [ 
-    `/some/path/data/hello.sh`,
+    "/some/path/data/hello.sh",
     { 
     "a.txt" : "/the/same/path/hello.sh",
-    "b.txt" :  createReadStream("/another/path/hello.sh`)
+    "b.txt" :  createReadStream("/another/path/hello.sh")
     },
     "/some/other/path/file.txt",
     { 
@@ -145,9 +147,12 @@ const inputs = [
     "d.txt" :  createReadStream("/there/data/hello_many.sh")
     }
 ] as clientInputAPI;
+
+const stdout = await jmClient.push({ cmd, inputs });
 ```
 
-will create 6 files named `input/hello.sh, input/a.txt, input/b.txt, input/file.txt, input/c.txt, input/d.txt` in the job working directory.
+will cat to stdout the content of 6 created files  named `input/hello.sh, input/a.txt, input/b.txt, input/file.txt, input/c.txt, input/d.txt` (located in the job working directory).
+
 <span style="font-weight:bold">Be aware that identical destination filenames are forbidden and will trigger job rejection at submission.</span>
 
 
