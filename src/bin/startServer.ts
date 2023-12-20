@@ -2,7 +2,6 @@ import jobManagerCore = require('../index.js');
 import {logger, setLogLevel, setLogFile} from '../logger.js';
 import program = require('commander');
 //import {selfTest} from '../tests_to_update/testTools';
-import fs = require('fs');
 
 /*
     Launching the job manager microservice
@@ -55,18 +54,9 @@ if (!baseParameters.engineBinaries){ //program.bean
 }
 
 jobManagerCore.start(baseParameters).on('ready', () => {
-  /*
     if(program.self)
-        selfTest(jobManagerCore, program.self);
-        */
+        logger.warn("Tests need to be updated...")    
+    //selfTest(jobManagerCore, program.self);
 }).on('error', (msg) => {
     logger.fatal(msg)
 });
-
-/*
-    Base for configuration file needs additional work
-*/
-function beanParser(filename:string):Record<string, string> {
-    const datum = JSON.parse(fs.readFileSync(filename, 'utf8'));
-    return datum;
-}
