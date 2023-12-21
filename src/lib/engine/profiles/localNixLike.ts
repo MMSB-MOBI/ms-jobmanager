@@ -1,3 +1,4 @@
+// actions in default profile now feature /etc/profile to enable module executable
 const profiles = {
     "comments": "Definition of local set of preprocessors options values",
     "definitions": {
@@ -9,8 +10,7 @@ const profiles = {
         }
     },
     "actions" : {
-        "default": [ "source /etc/profile", "printenv", "echo testing module existence", "module list",
-                     " echo '#####'", "echo $SHELL", "hostname", "nvm list", "echo PATH IS $PATH"]
+        "default": [ "source /etc/profile" ]
     },
     "dummy": {
         "WORKDIR": "$PWD",// to mimic other engines : specify a workdir
