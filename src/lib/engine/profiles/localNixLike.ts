@@ -9,8 +9,8 @@ const profiles = {
         }
     },
     "actions" : {
-        "default": [ "printenv", "echo testing module existence", "which module",
-                     " echo '#####'", "echo $SHELL", "hostname", "echo NVM IS $(nvm list)", "echo PATH IS $PATH"]
+        "default": [ "source /etc/profile", "printenv", "echo testing module existence", "module list",
+                     " echo '#####'", "echo $SHELL", "hostname", "nvm list", "echo PATH IS $PATH"]
     },
     "dummy": {
         "WORKDIR": "$PWD",// to mimic other engines : specify a workdir
