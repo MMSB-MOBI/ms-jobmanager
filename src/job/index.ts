@@ -275,15 +275,18 @@ export class Job extends JobBase implements JobOpt  {
             logger.info(`execUser : ${this.engine.execUser}`); 
         const cmd = this.engine.execUser ? 'sudo' : this.engine.submitBin
         const args = this.engine.execUser ? ['-u', this.engine.execUser, this.engine.submitBin, fname] : [fname]
-        logger.info(`execute : > ${cmd} ${args}`)
-        let child = childProc.spawn(cmd, args
-        , {
+        logger.info(`[JOB:submit] : > ${cmd} ${args}`)
+
+        const spawnOpt:any =  {
             cwd: this.workDir,           
             detached: false, //false, 
             //shell : true,
             //uid: 1322, 
             stdio: [ 'ignore', 'pipe', 'pipe' ] // ignore stdin, stdout / stderr set to pipe 
-        });
+        };
+        if(this.engine.specs === "emulate")
+            spawnOpt['env'] =  process.env;
+        let child = childProc.spawn(cmd, args, spawnOpt);
         // and unref() somehow disentangles the child's event loop from the parent's: 
         //child.unref(); 
         child.on("exit", ()=>{ logger.silly('Child process exited'); });
