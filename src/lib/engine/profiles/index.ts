@@ -75,7 +75,7 @@ function _preprocessorDump (vars:stringMap, actions?:string[]):string {
     for (let sym in vars)
         str += `export ${sym}=${vars[sym]}\n`;
     if(actions)
-        actions.forEach ( action => str += `${action} >> .preprocess.out`);
+        actions.forEach ( action => str += `${action} >> .preprocess.out\n`);
     return str;
 }
  
