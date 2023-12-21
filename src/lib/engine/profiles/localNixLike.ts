@@ -9,7 +9,7 @@ const profiles = {
         }
     },
     "actions" : {
-        "default": [ "printenv", "echo testing module existence", "which module", " echo '#####'", "echo $SHELL"]
+        "default": [ "printenv", "echo testing module existence", "which module", " echo '#####'", "echo $SHELL", "hostname"]
     },
     "dummy": {
         "WORKDIR": "$PWD",// to mimic other engines : specify a workdir
