@@ -275,7 +275,7 @@ export class Job extends JobBase implements JobOpt  {
             logger.info(`execUser : ${this.engine.execUser}`); 
         const cmd = this.engine.execUser ? 'sudo' : this.engine.submitBin
         const args = this.engine.execUser ? ['-u', this.engine.execUser, this.engine.submitBin, fname] : [fname]
-        logger.info(`[JOB:submit] : > ${cmd} ${args}`)
+        logger.info(`[JOB:submit] \"${this.engine.specs}\": > ${cmd} ${args}`);
 
         const spawnOpt:any =  {
             cwd: this.workDir,           
