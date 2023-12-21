@@ -121,17 +121,13 @@ export function isValidJobOptInputs (obj: any): obj is JobOptInputs {//InputData
     return false;
 }
 
-export function isArrayOfString(obj:any): obj is string[] {
-    if(! (obj instanceof Array))
+export function isArrayOfString(obj: any): obj is string[] {
+    if (!Array.isArray(obj))
         return false;
-    if(obj.length == 0)
+    if (obj.length == 0)
         return false
-    for (let v of obj){
-        if ( typeof(v) != 'string' )
-            return false
-    }
 
-    return true;
+    return obj.reduce( (isValid: boolean, e: any) => typeof (e) === "string" && isValid, true );
 }
 
 

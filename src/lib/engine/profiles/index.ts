@@ -1,15 +1,35 @@
-/* Now that we have a profile typeguard we should consider loading profile jit */
 import {logger} from '../../../logger.js';
-import {stringMap, isStringMap } from '../../../shared/types/base';
+import { stringMap, isStringMap, isArrayOfString } from '../../../shared/types/base';
 
-export interface profileInterface {
-    'comments' : string;
-    'definitions' : profileDefinition
-}
 
+/*
+{
+    "comments": "Definition of local set of preprocessors options values",
+    "definitions": {
+        "default": {
+            "WORKDIR": "$PWD",// to mimic other engines : specify a workdir
+            "user": "buddy",
+            "system": "nix",
+            "waitingTime": "10",
+        }
+    },
+    "actions" : {
+        "default": [ "printenv"]
+    },
+*/
+
+
+type profileAction = { [s:string] :  string[] };
 
 export interface profileDefinition {
     [s:string] : stringMap;
+}
+
+export interface profileInterface {
+    comments    : string;
+    definitions : profileDefinition;
+    actions?    : profileAction;
+
 }
 
 export function isProfile(obj: any): obj is profileInterface {
@@ -21,18 +41,23 @@ export function isProfile(obj: any): obj is profileInterface {
         if(typeof(key) != 'string') return false;
         if(!isStringMap(obj[key])) return false;
     }
+    if(obj.hasOwnProperty('actions'))
+        for(let key in obj.actions)
+           if (!isArrayOfString(obj.actions[key]))
+                return false;
+            
     return true;
 }
 
-
 export function defaultGetPreprocessorString (profileKey:string|undefined, profileContainer:profileInterface):string {
-    let container:{} = defaultGetPreprocessorContainer(profileKey, profileContainer);
-    let string:string = _preprocessorDump(container);
+    const [varDefs, actionsDef] = defaultGetPreprocessorContainer(profileKey, profileContainer);
+    let string:string = _preprocessorDump(varDefs, actionsDef);
     string += "export JOBPROFILE=\"" + profileKey + "\"\n";
     return string;
 }
 
-export function defaultGetPreprocessorContainer(profileKey:string|undefined, profileContainer:profileInterface):{}{ 
+export const defaultGetPreprocessorContainer = (profileKey:string|undefined, profileContainer:profileInterface):[ stringMap, undefined|string[] ] => { 
+   
     if (!profileKey){
         logger.warn(`profile key undefined, using "default"`);
         profileKey = "default";
@@ -41,12 +66,15 @@ export function defaultGetPreprocessorContainer(profileKey:string|undefined, pro
         logger.error(`profile key ${profileKey} unknown, using "default"`);
         profileKey = "default";
     }
-    return  profileContainer.definitions[profileKey];
+    return [ profileContainer.definitions[profileKey], profileContainer.actions?.[profileKey] ];
 }
 
-function _preprocessorDump (obj:stringMap):string {
+function _preprocessorDump (vars:stringMap, actions?:string[]):string {
     let str = '';
-    for (let k in obj)
-        str += `export ${k}=${obj[k]}\n`;
+    for (let sym in vars)
+        str += `export ${sym}=${vars[sym]}\n`;
+    if(actions)
+        actions.forEach ( action => str += `${action} >> .preprocess.out`);
     return str;
 }
+ 
