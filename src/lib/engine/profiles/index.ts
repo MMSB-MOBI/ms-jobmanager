@@ -57,7 +57,7 @@ export function defaultGetPreprocessorString (profileKey:string|undefined, profi
 }
 
 export const defaultGetPreprocessorContainer = (profileKey:string|undefined, profileContainer:profileInterface):[ stringMap, undefined|string[] ] => { 
-   
+    logger.error("->>>>>OOOOO>>" + profileKey);
     if (!profileKey){
         logger.warn(`profile key undefined, using "default"`);
         profileKey = "default";
@@ -71,6 +71,7 @@ export const defaultGetPreprocessorContainer = (profileKey:string|undefined, pro
 
 function _preprocessorDump (vars:stringMap, actions?:string[]):string {
     let str = '';
+    logger.error("->>>>>>>" + actions);
     for (let sym in vars)
         str += `export ${sym}=${vars[sym]}\n`;
     if(actions)
