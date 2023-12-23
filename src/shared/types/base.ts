@@ -102,8 +102,9 @@ export function isValidJobOptInputs (obj: any): obj is JobOptInputs {//InputData
         return true;
 
     if (obj instanceof Array) {
+        console.log('==>Array');
         for (const _ of obj) {
-            if(typeof(_) == 'string') {
+            if(typeof(_) === 'string') {
                 if( !isPath(_) ) {
                     console.error(`[ms-jobmanager:client::Input Check Failure] ${_} is an invalid path`);
                     return false;
