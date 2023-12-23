@@ -65,7 +65,7 @@ export class slurmEngine implements EngineInterface {
     }
     setSysProfile(sysKeyProfile:string) {
         if (!engineSys.definitions.hasOwnProperty(sysKeyProfile)) {
-            logger.error(`No such sysProfile {sysKeyProfile}`);
+            logger.error(`No such sysProfile ${sysKeyProfile}`);
             return;
         }
         const sysSettings:any = engineSys.definitions;

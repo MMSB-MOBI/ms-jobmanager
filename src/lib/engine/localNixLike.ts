@@ -24,7 +24,7 @@ export class nixLikeEngine implements EngineInterface {
     setSysProfile(sysKeyProfile:string) {
         logger.info("nixLike Engine setSysProfile call");
         if (!engineSys.definitions.hasOwnProperty(sysKeyProfile)) {
-            logger.error(`No such sysProfile {sysKeyProfile}`);
+            logger.error(`No such sysProfile ${sysKeyProfile}`);
             return;
         }
         const sysSettings:any = engineSys.definitions;
