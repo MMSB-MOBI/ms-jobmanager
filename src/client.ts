@@ -11,7 +11,7 @@ import {ConnectionError, StartConnectionError,
         JobConnectionLostError, RemoteInputError, LostJobError } from './errors/client';
 import { EventEmitter } from 'events';
 
-export { ClientInputAPI, JobOptAPI };
+export { ClientInputAPI, JobOptAPI, JobFileSystem };
 
 // Limited PUBLIC CLIENT API
 
