@@ -15,6 +15,10 @@ export { ClientInputAPI, JobOptAPI, JobFileSystem };
 
 // Limited PUBLIC CLIENT API
 
+export namespace Errors {
+    JobStderrNotEmptyFS;
+}
+
 /*
     For now they are (re) declared for sole public purpose here
     They may be imported from ./shared/types/* in the future
