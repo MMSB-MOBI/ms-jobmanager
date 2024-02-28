@@ -16,7 +16,7 @@ export { ClientInputAPI, JobOptAPI, JobFileSystem };
 // Limited PUBLIC CLIENT API
 import { JobStderrNotEmptyFS as _JobStderrNotEmptyFS } from './errors/client';
 export namespace Errors {
-    export const JobStderrNotEmptyFS = _JobStderrNotEmptyFS;
+    export type JobStderrNotEmptyFS = _JobStderrNotEmptyFS;
 }
 
 /*
