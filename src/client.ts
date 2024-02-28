@@ -16,7 +16,7 @@ export { ClientInputAPI, JobOptAPI, JobFileSystem };
 // Limited PUBLIC CLIENT API
 
 export namespace Errors {
-    JobStderrNotEmptyFS;
+    JobStderrNotEmptyFS:JobStderrNotEmptyFS;
 }
 
 /*
