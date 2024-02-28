@@ -14,9 +14,9 @@ import { EventEmitter } from 'events';
 export { ClientInputAPI, JobOptAPI, JobFileSystem };
 
 // Limited PUBLIC CLIENT API
-
+import { JobStderrNotEmptyFS as _JobStderrNotEmptyFS } from './errors/client';
 export namespace Errors {
-    JobStderrNotEmptyFS:JobStderrNotEmptyFS;
+    export const JobStderrNotEmptyFS = _JobStderrNotEmptyFS;
 }
 
 /*
