@@ -34,7 +34,8 @@ export class SocketRegistry extends EventEmitter {
     constructor(port:number){
         super();
         this.port   = port;
-        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents/*, InterServerEvents, SocketData*/>(this.port);
+        this.server = new SocketIOServer<ClientToServerEvents, ServerToClientEvents/*, InterServerEvents, SocketData*/>(
+            this.port, {maxHttpBufferSize: 1e8}); // Increasing buffer size to pass larger streams // files as inputs
         const self = this;
         // Job NS logic
         const uuidJobNsRegExp=/^\/job\b-[0-9a-fA-F]{8}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{4}\b-[0-9a-fA-F]{12}$/;
@@ -64,6 +65,7 @@ export class SocketRegistry extends EventEmitter {
             this.emit('clientMainSocketConnection', socket); // concrete socket
             socket.on('newjob',()=> logger.error("OUPSS!!"));
             socket.on('disconnect', function () {
+                logger.debug(`Client ${uuid} "disconnect" event occur, removing client`);
                 self.removeClient(uuid);
             });
 
@@ -186,8 +188,10 @@ export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket
                 inputs: {}
             };
             for (let inputSymbol in jobOptProxy.inputs) {
+                logger.debug("[serverShell:granted] Setting up remote input steam at " + inputSymbol);
                 remoteData.inputs[inputSymbol] = ss.createStream();
-                logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
+                //logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
+                logger.debug(`[serverShell:granted] Emitting "input_streams/${inputSymbol}" to read over ssStream`);
                 ss(socket).emit(`input_streams/${inputSymbol}`, remoteData.inputs[inputSymbol]);
             }
             ss(socket).emit("script", remoteData.script);

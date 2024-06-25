@@ -1,6 +1,6 @@
 import jobManagerCore = require('../index.js');
 import {logger, setLogLevel, setLogFile} from '../logger.js';
-import program = require('commander');
+const { program } = require('commander');
 //import {selfTest} from '../tests_to_update/testTools';
 
 /*
@@ -22,8 +22,10 @@ program
     //.option('-b, --bean [configurationFilePath]', 'MS Job Manager configuration File') /* Does not seem to be used ? */
     .option('-f, --force', 'Enforce cacheDir usage, preventing root cache folder creation', false) /* Does not seem to be used */
     .option('-t, --whtest', 'Warehouse connection test') /* Does not seem to be used */
-    .option('-a, --adress [IP adress]', 'MS Job Manager host machine adress', '127.0.0.1')  /*Does not seem to be used */
-.parse(process.argv);
+    .option('-a, --adress [IP adress]', 'MS Job Manager host machine adress', '127.0.0.1');  /*Does not seem to be used */
+//.parse(process.argv);
+program.parse();
+const options = program.opts();
 
 if (!program.logFile)
     setLogFile('./jobManager.log');
@@ -31,20 +33,20 @@ if (!program.logFile)
 logger.info("\t\tStarting public JobManager MicroService");
 
 let baseParameters = {
-    cacheDir : program.cache,
-    engineSpec : program.engine, //as jobManagerCore.engineSpecs,
-    tcp : program.adress,
-    port : program.port ? program.port : 8080,
-    microServicePort:program.socket ? program.socket : 2020,
-    warehouseAddress: program.warehouse,
-    warehousePort: program.whport ? program.whport : 7688,
-    warehouseTest: program.whtest ? true : false,
-    nWorker : program.nworker ? program.nworker : 10,
-    engineBinaries : program.bean ? program.bean : undefined, //JSON.parse(fs.readFileSync(program.bean, 'utf8')).engineBinaries
-    forceCache : program.force
+    cacheDir : options.cache,
+    engineSpec : options.engine, //as jobManagerCore.engineSpecs,
+    tcp : options.adress,
+    port : options.port ? options.port : 8080,
+    microServicePort:options.socket ? options.socket : 2020,
+    warehouseAddress: options.warehouse,
+    warehousePort: options.whport ? options.whport : 7688,
+    warehouseTest: options.whtest ? true : false,
+    nWorker : options.nworker ? options.nworker : 10,
+    engineBinaries : options.bean ? options.bean : undefined, //JSON.parse(fs.readFileSync(program.bean, 'utf8')).engineBinaries
+    forceCache : options.force
 };
 
-if(program.self) {
+if(options.self) {
     logger.info(`Performing ${program.self} self test, MS capabilities are disabled`);
     baseParameters.microServicePort = undefined;
 }

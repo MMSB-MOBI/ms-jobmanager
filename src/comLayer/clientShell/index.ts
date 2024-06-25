@@ -9,6 +9,7 @@ import { uuid } from '../../shared/types/base';
 import { JobAccumulator } from './accumulator';
 import { JobFileSystem } from './fileSystem';
 import {ConnectionError} from '../../errors/client';
+import { client_debugger } from './debugLogger';
 export class ClientShell {
     acc:JobAccumulator;
     mainSocket?:Socket<ServerToClientEvents, ClientToServerEvents>;
@@ -38,6 +39,7 @@ export class ClientShell {
                 reject(new ConnectionError("socket connection error", this.TCPip, this.port))
             });
             this.mainSocket.on("disconnect", () => {
+                client_debugger(`ClientShell "disconnect" event received on mainSocket !`);
                 this.acc.abortAll(); 
                 statusEmitter.emit("disconnect")
             })

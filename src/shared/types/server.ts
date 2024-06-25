@@ -33,34 +33,6 @@ export interface netStreamInputs {
     inputs: Record<string, Readable>
 }
 
-/*
-
-        logger.debug(`i grant access to ${jobID}`);
-            
-            const socketNamespace = jobID;
-            const newData:Record<string, any> = {
-                script: ss.createStream(),
-                inputs: {}
-            };
-            for (let inputSymbol in jobOptProxy.inputs) {
-                //let filePath = data.inputs[inputSymbol];
-                //logger.debug(`-->${filePath}`);
-                newData.inputs[inputSymbol] = ss.createStream();
-                logger.debug(`ssStream emission for input symbol '${inputSymbol}'`);
-                ss(socket).emit(`${socketNamespace}/${inputSymbol}`, newData.inputs[inputSymbol]);
-                //logger.warn('IeDump from' +  socketNamespace + "/" + inputSymbol);
-                //newData.inputs[inputSymbol].pipe(process.stdout)
-            }
-            ss(socket).emit(socketNamespace + "/script", newData.script);
-            //logger.error(`TOTOT2\n${util.format(newData)}`);
-            for (let k in data) {
-                if (k !== 'inputs' && k !== 'script')
-                    newData[k] = data[k];
-            }
-            newData.socket = socket;
-*/
-
-
 
 export interface JobSerial extends JobOptBase{
     id:string,
@@ -86,6 +58,7 @@ export interface JobManagerSpecs {
 }
 
 export function isSpecs(opt: any): opt is JobManagerSpecs {
+    console.dir(opt);
     if(!path.isAbsolute(opt.cacheDir)) {
         logger.error('cacheDir parameter must be an absolute path');
         return false;

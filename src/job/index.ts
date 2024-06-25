@@ -165,7 +165,7 @@ export class Job extends JobBase implements JobOpt  {
         const cwd = this.getConcreteWorkDir(); 
         const path = `${cwd}/${maybeRelativeFileName}`
         return new Promise ( (res, rej) => {
-            access(path, constants.R_OK, (err:NodeJS.ErrnoException) => {
+            access(path, constants.R_OK, (err:NodeJS.ErrnoException|null) => {
                 if(err)
                     rej(err)
                 else

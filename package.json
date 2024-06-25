@@ -7,7 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "build": "tsc && rm build/examples/*.d.ts",
     "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;",
-    "server": "node build/bin/startServer.js"
+    "server": "node build/bin/startServer.js",
+    "server:test": "[ -d /tmp/jm ] && mkdir /tmp/jm; node build/bin/startServer.js -e emulate -p 3456 -k 2020 -c /tmp/jm",
+    "client:test":"export MSJM_CLIENT_DEBUG=1; node " 
   },
   "files": [
     "*"
@@ -30,7 +32,7 @@
     "@types/mkdirp": "^0.5.2",
     "@types/node-dir": "0.0.32",
     "@types/uuid": "^3.4.3",
-    "commander": "^2.15.1",
+    "commander": "^12.1.0",
     "copyfiles": "^2.4.1",
     "date-and-time": "^0.6.2",
     "deep-equal": "^1.0.1",
@@ -51,8 +53,8 @@
     "zip-spawn": "^1.2.2"
   },
   "devDependencies": {
-    "@types/node": "^9.6.56",
+    "@types/node": "^20.14.6",
     "@types/winston": "^2.4.4",
-    "typescript": "^3.9.5"
+    "typescript": "^5.4.5"
   }
 }

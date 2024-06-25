@@ -80,7 +80,7 @@ export class JobFileSystem {
                     return 
                 }
                 stat(targetFileName, function(err, stat) {
-                    if (err.code !== 'ENOENT') {
+                    if (err?.code !== 'ENOENT') {
                         rej(new WriteErrorFS(`${targetFileName} already exists`, id));
                         return;
                     }

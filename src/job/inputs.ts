@@ -10,6 +10,10 @@ import { createHash } from 'crypto';
 import { JobOptInputs, ClientInputBaseMap } from '../shared/types/common/jobopt_model';
 import { JobInputBuildError } from "../errors/client";
 
+import { client_debugger } from "../comLayer/clientShell/debugLogger";
+
+
+
 export class JobInputs extends EventEmitter {
     streams:Record<string, Readable> = {}
     paths:Record<string, string>     = {}
@@ -86,6 +90,8 @@ export class JobInputs extends EventEmitter {
                }
             }            
             this.streams[key].on('error', (e:string) => {
+                logger.error("stream error at " + key)
+                client_debugger("STREAM ERROR AT " + key);
                 self.emit('streamReadError', e);
             });
         }
@@ -93,8 +99,9 @@ export class JobInputs extends EventEmitter {
     }
     // Access from client side to wrap in socketIO
     getStreamsMap():Record<string, Readable>|undefined {
+       
         if (this.hashable) {
-            logger.warn('All streams were consumed');
+            logger.warn('All streams were consumed'); 
             return undefined;
         }  
         return this.streams;

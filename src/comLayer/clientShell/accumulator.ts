@@ -3,7 +3,6 @@ import { JobProxy, JobOptProxy } from '../../shared/types/client'
 import { JobWrap, SourcesMap } from './type';
 import { uuid } from '../../shared/types/base';
 import { ServerStatus } from '../../shared/types/common'
-import { logger } from '../../logger';
 import { format as uFormat} from 'util';
 import { Writable, Readable } from 'stream';
 import { io, Socket } from "socket.io-client";
@@ -11,6 +10,9 @@ const ss = require('socket.io-stream');
 import { JobSerial } from '../../shared/types/server'
 import { createReadStream } from 'fs';
 import uuidv4 = require('uuid/v4');
+
+import { client_debugger, client_silly } from './debugLogger';
+
 
 export class JobAccumulator extends EventEmitter {
     jobsPool:Record<string, JobProxy> = {};
@@ -52,7 +54,7 @@ export class JobAccumulator extends EventEmitter {
         const p = new Promise((resolve, reject) => {
            
             if (!jobWrap) {
-                logger.debug("Queue exhausted");
+                client_debugger("Queue exhausted");
                 reject({ type: 'exhausted' });
                 return;
             }
@@ -74,8 +76,9 @@ export class JobAccumulator extends EventEmitter {
                 // if a cmd is passed we make it a stream and assign it to script
                 //const data = jobWrap.data;
                 
-                const jobOpt = buildStreams(_jobOpt, job); 
-                logger.debug(`jobOpt passed to socket w/ id ${job.id}:\n${uFormat(jobOpt)}`);
+                const jobOpt = buildStreams(_jobOpt, job);
+                
+                client_debugger(`jobOpt passed to socket w/ id ${job.id}:\n${uFormat(jobOpt)}`);
                 //ss(this.socket, {}).on(job.id + '/script', (stream:Writable) => { jobOpt.script.pipe(stream); });
                 ss(job.socket, {}).on('script', (stream:Writable) => { jobOpt.script.pipe(stream); });
                 for (let inputEvent in jobOpt.inputs)
@@ -83,19 +86,20 @@ export class JobAccumulator extends EventEmitter {
                     ss(job.socket, {}).on('input_streams/' + inputEvent, (stream:Writable) => {
                         jobOpt.inputs[inputEvent].pipe(stream);
                     });
-                logger.silly(`EMITTING THIS ORIGINAL ${job.id}\n${uFormat(jobOpt)}`);
+                    client_debugger(`EMITTING THIS ORIGINAL ${job.id}\n${uFormat(jobOpt)}`);
             }
             else {
-                logger.silly(`EMITTING THIS RESUB ${jobWrap.job.id}\n${uFormat(jobWrap.jobOpt)}`);
+                client_debugger(`EMITTING THIS RESUB ${jobWrap.job.id}\n${uFormat(jobWrap.jobOpt)}`);
             }
             jobWrap.status = 'sent';
-            logger.debug(`newJob attempt at ${job.id} passing:\n ${uFormat(jobWrap)}`);
+            client_debugger(`newJob attempt at ${job.id} passing:\n ${uFormat(jobWrap)}`);
             job.socket.emit('newjob', jobWrap.job.id, jobWrap.jobOpt);
         });
         return p as Promise<string>;
     }
 
     abortAll(){
+        client_debugger("JobAccumulator:abortAll")
         for(const [jobId, jobProxyObj] of Object.entries(this.jobsPool)){
             console.log(jobId +  "abort");
             (jobProxyObj as JobProxy).emit("disconnect_error")
@@ -115,7 +119,7 @@ export class JobAccumulator extends EventEmitter {
             'jobOpt': jobOpt,
             'status': 'idle'
         });
-        logger.silly(`appendToQueue ${job.id}`)
+        client_debugger(`appendToQueue ${job.id}`)
         if (this.isIdle())
             this.pulse();
         return job;
@@ -133,7 +137,7 @@ export class JobAccumulator extends EventEmitter {
             delete (this.jobsPromisesReject[jobID]);
             return true;
         }
-        logger.error(`Can't remove job, its id ${jobID} is not found in local jobsPool`);
+        client_debugger(`Can't remove job, its id ${jobID} is not found in local jobsPool`);
         return false;
     }
     pulse() {
@@ -162,53 +166,53 @@ export class JobAccumulator extends EventEmitter {
         return job;
     }
     getJobObject(maybeJobID:uuid):JobProxy|undefined {
-        logger.silly(`getJobObject ${maybeJobID}`)
+        client_debugger(`getJobObject ${maybeJobID}`)
         if (this.jobsPool.hasOwnProperty(maybeJobID))
             return this.jobsPool[maybeJobID];
-        logger.error(`job id ${maybeJobID} is not found in local jobsPool`);
-        logger.error(`jobsPool : ${uFormat(Object.keys(this.jobsPool))}`);
+        client_debugger(`job id ${maybeJobID} is not found in local jobsPool`);
+        client_debugger(`jobsPool : ${uFormat(Object.keys(this.jobsPool))}`);
         return undefined;
     }
     // Create one namespaced socket by job
     async createJobSocket(jobID:uuid):Promise<Socket> {
-        logger.debug(`Creating job ${jobID} socket`);
+        client_debugger(`Creating job ${jobID} socket`);
         const job_nsp = `http://${this.TCPip}:${this.port}/job-${jobID}`;
-        logger.debug(`Corresponding ns is ${job_nsp}`)
+        client_debugger(`Corresponding ns is ${job_nsp}`)
         
         const nspJobSocket = io(job_nsp);
        
         nspJobSocket.on('jobStart', (data) => {
-            logger.silly(`Client : socket on jobStart`)
+            client_debugger(`Client : socket on jobStart`)
             // Maybe do smtg
             // data = JSON.parse(data);
         });
         let self = this;
         nspJobSocket.on('bounced', (jobID:uuid) => {
-            logger.silly(`Client : socket on bounced`)
-            logger.warn(`Job ${jobID} was bounced !`);
+            client_debugger(`Client : socket on bounced`)
+            client_debugger(`Job ${jobID} was bounced !`);
             self.jobsPromisesReject[jobID]({ 'type': 'bouncing', jobID });
         });
         nspJobSocket.on('granted', (jobID) => {
-            logger.silly(`Client : socket on granted`)
-            logger.debug(`Job ${jobID} was granted !`);
+            client_debugger(`Client : socket on granted`)
+            client_debugger(`Job ${jobID} was granted !`);
             self.jobsPromisesResolve[jobID](jobID);
         });
         nspJobSocket.on('lostJob', (_jobSerial:string) => {
-            logger.silly(`Client : socket on lostJob`)
+            client_debugger(`Client : socket on lostJob`)
             const jobSerial:JobSerial = JSON.parse(_jobSerial)
-            logger.error(`lostJob ${jobSerial.id}`)
+            client_debugger(`lostJob ${jobSerial.id}`)
             let jRef = this.getJobObject(jobSerial.id);
             if (!jRef){
                 return;
             }
-            logger.error(`Following job not found in the process pool ${jRef.id}`);
+            client_debugger(`Following job not found in the process pool ${jRef.id}`);
             
             jRef.emit('lostJob', jRef);
             self.deleteJob(jobSerial.id);
         });      
 
         nspJobSocket.on('fsFatalError', (msg, err, jobID) => {
-            logger.silly(`Client : socket on fsFatalError`)
+            client_debugger(`Client : socket on fsFatalError`)
             let jRef = this.getJobObject(jobID);
             if (!jRef)
                 return;
@@ -217,7 +221,7 @@ export class JobAccumulator extends EventEmitter {
         });
         ['scriptSetPermissionError', 'scriptWriteError', 'scriptReadError', 'inputError'].forEach((eName) => {
             nspJobSocket.on(eName, (err, jobSerial) => {
-                logger.fatal(`socket.on error ${err} ${uFormat(jobSerial)}`)
+                client_debugger(`socket.on error ${err} ${uFormat(jobSerial)}`)
                 let jRef = this.getJobObject(jobSerial.id);
                 if (!jRef)
                     return;
@@ -235,27 +239,27 @@ export class JobAccumulator extends EventEmitter {
             });
         });
         nspJobSocket.on('completed', (jobSerial:JobSerial) => {
-            logger.debug(`pulling Object : ${uFormat(jobSerial)}`);
+            client_debugger(`pulling Object : ${uFormat(jobSerial)}`);
             const jobObject = this.flush(jobSerial.id);
             if (!jobObject)
                 return;
-            logger.debug('completed event on socket');
-            logger.silly(`${uFormat(jobObject)}`);
+            client_debugger('completed event on socket');
+            client_debugger(`${uFormat(jobObject)}`);
             jobObject.stdout = ss.createStream();
             jobObject.stderr = ss.createStream();
-            logger.debug(`Pulling for ${jobObject.id}:stdout`);
-            logger.debug(`Pulling for ${jobObject.id}:stderr`);
+            client_debugger(`Pulling for ${jobObject.id}:stdout`);
+            client_debugger(`Pulling for ${jobObject.id}:stderr`);
             ss(nspJobSocket).emit(`${jobObject.id}:stdout`, jobObject.stdout);
             ss(nspJobSocket).emit(`${jobObject.id}:stderr`, jobObject.stderr);
             jobObject.emit('completed', jobObject.stdout, jobObject.stderr, jobObject);
 
         });
         nspJobSocket.on('disconnect', () => {
-            logger.debug(`job nsp socket ${jobID} disconnect`);
+            client_debugger(`job nsp socket ${jobID} disconnect`);
         });       
         return new Promise ( (res, rej) => {
             nspJobSocket.on('registred', () => {
-                logger.debug(`${job_nsp} registred`);
+                client_debugger(`${job_nsp} registred`);
                 res(nspJobSocket);
             });
         });
@@ -263,7 +267,7 @@ export class JobAccumulator extends EventEmitter {
 }
 
 function buildStreams(data:any, job:JobProxy) {
-    logger.debug(`Building streams from ${uFormat(data)}`);
+    client_debugger(`Building streams from ${uFormat(data)}`);
     let jobInput = job.inputs;
 
     const setScriptStream = ():Readable => {

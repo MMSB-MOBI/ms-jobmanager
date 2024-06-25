@@ -26,7 +26,7 @@ export class StartConnectionError extends ConnectionError {
 
 export class PushConnectionLostError extends ConnectionError {
     constructor(TCP:string, port:number) {
-        super(`Connection lost before pushing job at ${TCP}:${port}`, TCP, port);
+        super(`Connection lost while pushing job at ${TCP}:${port}`, TCP, port);
         this.name = "PushConnectionLostError";
         //Error.captureStackTrace(this, PushConnectionLostError);
     }
@@ -34,7 +34,7 @@ export class PushConnectionLostError extends ConnectionError {
 
 export class JobConnectionLostError extends ConnectionError {
     constructor(TCP:string, port:number, id:string) {
-        super(`Connection lost before pushing job at ${TCP}:${port}`, TCP, port);
+        super(`Connection lost at ${TCP}:${port}`, TCP, port);
         this.name = "JobConnectionLostError";
         this.message = `${id}::${this.message}`;
         //Error.captureStackTrace(this, JobConnectionLostError);
