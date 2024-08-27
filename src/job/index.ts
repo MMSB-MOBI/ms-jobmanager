@@ -210,6 +210,7 @@ export class Job extends JobBase implements JobOpt  {
             script : this.scriptFilePath,
             exportVar : this.exportVar,
             modules : this.modules,
+            venv: this.venv,
             tagTask : this.tagTask,
             scriptHash : '',
             inputHash : this.inputs.hash()
@@ -454,6 +455,20 @@ function batchDumper(job: Job) {
         }
     }
     */
+    logger.warn("===>" + job.venv);
+    if(job.venv) {
+        
+        const venvBinary = `${job.venv}/bin/activate`;
+        batchContentString +=  `if [ -x "${venvBinary}" ];then\n
+                                source ${venvBinary}\n
+                                else\n
+                                echo "[VENV-FAILURE-FATAL] Non existing python environment at ${job.venv}" > ${job.id}.err\n
+                                touch ${job.id}.out\n
+                                ${trailer}
+                                exit 1;\n
+                                fi\n`;
+    }
+
     if (job.modules) {
         job.modules.forEach(function(e) {
             batchContentString += "module load " + e + '\n';

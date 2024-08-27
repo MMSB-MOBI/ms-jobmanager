@@ -17,6 +17,7 @@ export class JobBase extends EventEmitter implements JobOptBase{
     tagTask? :string;
     namespace? :string;
     modules? :string[] = []; 
+    venv?    : string;
 
     constructor(jobOpt:JobOptBase, uuid?:string){
         super();
@@ -25,6 +26,8 @@ export class JobBase extends EventEmitter implements JobOptBase{
         this.id = uuid ? uuid : uuidv4();
         if ('modules' in jobOpt)
             this.modules = jobOpt.modules;
+        if ('venv' in jobOpt)
+            this.venv = jobOpt.venv;
         if ('jobProfile' in jobOpt)       
             this.jobProfile =  jobOpt.jobProfile;
         if('script' in jobOpt)

@@ -276,7 +276,7 @@ function isConstraintsOk(item:JobSerial, query:JobSerial): boolean {
     }
 
     // Scalar/shallow check
-    for ( let field in ['tagTask', 'scriptHash']) {
+    for ( let field in ['tagTask', 'scriptHash', 'venv']) {
         let k = <shallowKey>field;
         if(!query[k] && item[k]) return false;
 

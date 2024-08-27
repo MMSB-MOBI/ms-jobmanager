@@ -60,6 +60,7 @@ export function pprintJobTemplate(jt:JobOpt):string {
     let asString = `jobOptInterface\n\tengine:${jt.engine}}\n\tworkDir:${jt.workDir}\n\temulated:${jt.emulated}`;
     asString    += `\n\tadress/port:${jt.internalIP}${jt.internalPort}\n\tjobProfile:${jt.jobProfile}`;
     asString    += jt.modules        ? `\n\tmodules:${jt.modules}` : '';
+    asString    += jt.venv        ? `\n\tmodules:${jt.venv}` : '';
     asString    += jt.script         ? `\n\texportVar:${jt.script}` : '';
     asString    += jt.cmd            ? `\n\tcmd:${jt.cmd}` : '';
     asString    += jt.inputs         ? `\n\tinputs:${jt.inputs}` : '';

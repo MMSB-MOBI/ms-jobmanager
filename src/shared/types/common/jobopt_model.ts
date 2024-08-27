@@ -6,7 +6,7 @@ import { InputDataSocket} from '../../../shared/types/base';
 import {isValidJobOptInputs, isRecordOfStringToStringOrNumber, isArrayOfString, isReadableOrString} from '../base';
 import { Path, isReadableOrPath } from '../base';
 import { JobOptError } from '../../../errors/client';
-
+import { isAbsolute } from 'path';
 
 export type ClientInputBaseMap = Record<string, string|Readable>;
 export type ClientInput = (string|ClientInputBaseMap )[]|ClientInputBaseMap; // list of strings and maps or a map
@@ -16,7 +16,8 @@ export interface JobOptBase {
     cmd? : string,
     exportVar? : Record<string, string|number>    
     jobProfile?: string;    
-    modules? : string [],    
+    modules? : string [],
+    venv? :string,  
     namespace? :string,
     script? : Readable|Path,    
   
@@ -31,6 +32,7 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
         script: undefined,
         cmd: undefined,
         modules: [],
+        venv:undefined,
         tagTask: undefined,
         namespace: undefined,
         exportVar: undefined,
@@ -74,6 +76,11 @@ export function jobOptBaseFactory(opt:Object):JobOptBase {
             if(!isReadableOrPath(value))
                 throw ( new JobOptError(key, 'Readable|Path', value) )
                 //typeLogError(key, 'Readable|Path', value);
+            else
+                jobOptBase[key] = value;
+        if(key === 'venv')
+            if(!isAbsolute(value))
+                throw ( new JobOptError(key, 'string formated as absolute path', value) )
             else
                 jobOptBase[key] = value;
     }

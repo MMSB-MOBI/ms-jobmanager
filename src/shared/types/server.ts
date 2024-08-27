@@ -9,7 +9,7 @@ import { uuid } from './base';
 import { JobInputs } from '../../job/inputs';
 export type ServerStatus = 'busy' | 'available' 
 
-export const JobOptKeys = [ 'exportVar', 'modules', 'script', 'cmd', 'inputs', 'tagTask', 'ttl', 'socket', 'sysSettingsKey', 'jobProfile'];
+export const JobOptKeys = [ 'exportVar', 'venv', 'modules', 'script', 'cmd', 'inputs', 'tagTask', 'ttl', 'socket', 'sysSettingsKey', 'jobProfile'];
 
 export interface JobOpt extends JobOptBase{
     id: uuid,
