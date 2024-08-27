@@ -1,6 +1,6 @@
 {
   "name": "ms-jobmanager",
-  "version": "3.12.4",
+  "version": "3.13.0",
   "description": "A micro-service to handle job instanciation and submission ",
   "main": "client.js",
   "scripts": {
@@ -9,7 +9,7 @@
     "postbuild": "cp -r data/ build/examples/data/; cp package.json ./build;",
     "server": "node build/bin/startServer.js",
     "server:test": "[ -d /tmp/jm ] && mkdir /tmp/jm; node build/bin/startServer.js -e emulate -p 3456 -k 2020 -c /tmp/jm",
-    "client:test":"export MSJM_CLIENT_DEBUG=1; node " 
+    "client:test": "export MSJM_CLIENT_DEBUG=1; node "
   },
   "files": [
     "*"
