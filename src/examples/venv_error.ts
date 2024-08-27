@@ -17,6 +17,8 @@ const TCPip = "127.0.0.1";
         await jmClient.start(TCPip, port);       
         const stdout  = await jmClient.push({ script, exportVar, venv:"/tmp/my_venv" });
         console.log(`Job script standard output:: ${stdout}`);     
+        const stdout2  = await jmClient.push({ script, exportVar, venv:"non_absolute/tmp/my_venv" });
+        console.log(`Job script standard output:: ${stdout2}`);     
     } catch(e) {
         console.error(e);
     }

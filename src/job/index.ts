@@ -455,7 +455,6 @@ function batchDumper(job: Job) {
         }
     }
     */
-    logger.warn("===>" + job.venv);
     if(job.venv) {
         
         const venvBinary = `${job.venv}/bin/activate`;
