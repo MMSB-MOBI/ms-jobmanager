@@ -269,8 +269,10 @@ function isConstraintsOk(item:JobSerial, query:JobSerial): boolean {
 
     for ( let field of ['modules']) {
         let k = <deepKey>field;
-        let queryIter = query[k] as string[];
-        let itemIter = item[k] as string[];
+        // Guard against a missing/non-array modules field: a job serialized
+        // without modules would otherwise crash this lookup on `.length`.
+        let queryIter = (Array.isArray(query[k]) ? query[k] : []) as string[];
+        let itemIter = (Array.isArray(item[k]) ? item[k] : []) as string[];
         if (queryIter.length != itemIter.length) return false;
         if (_intersect(queryIter, itemIter).length !=  queryIter.length) return false;
     }

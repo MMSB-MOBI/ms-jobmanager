@@ -18,6 +18,7 @@ import { ClientToServerEvents, ServerToClientEvents, InterServerEvents/*, Socket
 import { access, constants } from 'fs';
 import { responseFS } from '../lib/socket-management/interfaces';
 import assert from 'assert'
+import { getBinaryTransport, isBinaryTransport } from './binaryTransfer';
 
 
 /* TO DO: GL June 22
@@ -110,30 +111,19 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
 
     const stdoutStream = stdoutStreamOverride ? stdoutStreamOverride : job.stdout();
     const stderrStream = stderrStreamOverride ? stderrStreamOverride : job.stderr();
-    ss(job.socket).on(`${job.id}:stdout`, function (stream:WriteStream) {
-        stdoutStream.then((_stdout) => {
-            logger.debug(`${job.id} Pumping stdout [${job.id}:stdout]`);
-            _stdout.pipe(stream);
-        });
-    });
-    ss(job.socket).on(`${job.id}:stderr`, function (stream:WriteStream) {
-        stderrStream.then((_stderr) => {
-            logger.debug(`${job.id} Pumping stderr [${job.id}:stderr]`);
-            _stderr.pipe(stream);
-        });
-    });
 
     if (!job.socket)
         return;
     const jobSocket = job.socket;
 
-    jobSocket.on("list", (path:string, callback) => { 
+    // Control-plane FS ops (native emit + ack) — shared by both transports.
+    jobSocket.on("list", (path:string, callback) => {
         logger.debug(`job ${job.id} is handling a list request`)
         job.list(path).then( (list_items)=> {
             callback(list_items);
         });
     });
-    
+
     jobSocket.on("isReadable", (fileName, callback) => {
        job.access(fileName)
         .then( ()=> {
@@ -146,23 +136,46 @@ export function socketPull(job:Job/*|JobProxy*/, stdoutStreamOverride?:Promise<R
             } as  responseFS)
         });
     });
-    ss(jobSocket).on('fsRead', function(stream:WriteStream, data:any) {
-        logger.debug(`${job.id} Trying to start pumping fsRead from ${data.name}`);
 
-        job.read(data.name).then( (readableStream)=> {
-            readableStream.pipe(stream);
-            logger.info(`${job.id} Pumping fsRead 2/2`);
+    if (isBinaryTransport(jobSocket)) {
+        // Native-binary data plane: client requests, server streams bytes back.
+        const bt = getBinaryTransport(jobSocket, job.id);
+        bt.onRequest((channel:string, args:any) => {
+            logger.debug(`${job.id} binary download request "${channel}"`);
+            if (channel === 'stdout') return stdoutStream;
+            if (channel === 'stderr') return stderrStream;
+            if (channel === 'fsRead') return job.read(args.name);
+            if (channel === 'fsZip')  return job.zipit(args?.noHeaderFiles ?? true);
+            throw new Error(`unknown download channel ${channel}`);
         });
-    }); 
-    ss(jobSocket).on('fsZip', function(stream:WriteStream, noHeaderFiles:boolean) {
-        //{ netStream, noHeaderFiles } = data;
+    } else {
+        // socket.io-stream data plane (legacy TS client).
+        ss(jobSocket).on(`${job.id}:stdout`, function (stream:WriteStream) {
+            stdoutStream.then((_stdout) => {
+                logger.debug(`${job.id} Pumping stdout [${job.id}:stdout]`);
+                _stdout.pipe(stream);
+            });
+        });
+        ss(jobSocket).on(`${job.id}:stderr`, function (stream:WriteStream) {
+            stderrStream.then((_stderr) => {
+                logger.debug(`${job.id} Pumping stderr [${job.id}:stderr]`);
+                _stderr.pipe(stream);
+            });
+        });
+        ss(jobSocket).on('fsRead', function(stream:WriteStream, data:any) {
+            logger.debug(`${job.id} Trying to start pumping fsRead from ${data.name}`);
+            job.read(data.name).then( (readableStream)=> {
+                readableStream.pipe(stream);
+                logger.info(`${job.id} Pumping fsRead 2/2`);
+            });
+        });
+        ss(jobSocket).on('fsZip', function(stream:WriteStream, noHeaderFiles:boolean) {
+            logger.debug(`${job.id} Trying to wrap and zip with noHeaderFiles set to ${noHeaderFiles}`);
+            const zipDirStream = job.zipit(noHeaderFiles);
+            zipDirStream.pipe(stream);
+        });
+    }
 
-        logger.debug(`${job.id} Trying to wrap and zip with noHeaderFiles set to ${noHeaderFiles}`);
-        const zipDirStream = job.zipit(noHeaderFiles);
-        
-        zipDirStream.pipe(stream);
-    }); 
- 
     job.socket.emit('completed', job /*JSON.stringify(jobObject)*/);
     // Can be customized w/ toJSON() // method
 }
@@ -182,7 +195,24 @@ export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket
         setTimeout(() => {
             logger.debug(`i grant access to ${jobID}`);
             socketRegistry.broadcast('available');
-            const socketNamespace = jobID;
+
+            if (isBinaryTransport(socket)) {
+                // Native-binary upload: server pre-registers channel sinks; the
+                // client pushes script/input bytes after receiving 'granted'.
+                const bt = getBinaryTransport(socket, jobID);
+                const remoteData:netStreamInputs = {
+                    script: bt.expect('script') as Readable,
+                    inputs: {}
+                };
+                for (let inputSymbol in jobOptProxy.inputs) {
+                    logger.debug(`[serverShell:granted] expecting binary upload for input "${inputSymbol}"`);
+                    remoteData.inputs[inputSymbol] = bt.expect(`input/${inputSymbol}`) as Readable;
+                }
+                socket.emit('granted', jobID);
+                resolve(remoteData);
+                return;
+            }
+
             const remoteData:netStreamInputs = {
                 script: ss.createStream(),
                 inputs: {}
@@ -195,7 +225,7 @@ export async function granted(jobOptProxy:JobOptProxy, jobID:uuid, socket:Socket
                 ss(socket).emit(`input_streams/${inputSymbol}`, remoteData.inputs[inputSymbol]);
             }
             ss(socket).emit("script", remoteData.script);
-           
+
             socket.emit('granted', jobID); // to client TO DO type cahnge and need hinting
             resolve(remoteData);
         }, 250);
